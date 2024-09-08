@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/************ Custom Font ************/
+@font-face {
+	font-family: Centra;
+	src: url('../public/assets/font/CentraNo2-Bold.ttf');
+	font-weight: 700;
+}
+@font-face {
+	font-family: Centra;
+	src: url('../public/assets/font/CentraNo2-Medium.ttf');
+	font-weight: 500;
+}
+@font-face {
+	font-family: Centra;
+	src: url('../public/assets/font/CentraNo2-Book.ttf');
+	font-weight: 400;
+}
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+  --transparent : hsla(0,0%,100%,0);
+  --header-bg: hsla(0, 0%, 100%, .01);
+  --header-blur: 12px;
+  --header-border: hsla(0, 0%, 100%, .08);
+  --bs-navbar-padding-x: 0;
+  --bs-navbar-padding-y: .5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  
+  background-image: 
+  conic-gradient(from 90deg at -10% 100%, #2b303b, #2b303b 90deg, #16181d 1turn);
+  font-family: 'Centra', sans-serif !important;
+  overscroll-behavior: none;
+  padding-top: 4rem;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+nav {
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 9999;
+    transition: .32s ease-in-out;
+    background: var(--header-bg) !important;
+    border-bottom: 1px solid var(--header-border) !important;
+    -webkit-backdrop-filter: blur(var(--header-blur));
+    backdrop-filter: blur(var(--header-blur));
+    padding: var(--bs-navbar-padding-y) var(--bs-navbar-padding-x);
+    text-align: center;
+    overscroll-behavior: none;
+  }
+  footer{
+    margin-top: 2rem;
+    margin-bottom: 2rem ;
+  }
+  footer p {
+    text-align: center;
+      font-weight: 400;
+      font-size: 14px;
+      color: #B8B8B8;
+      letter-spacing: 0.4px;
+    }
+}
