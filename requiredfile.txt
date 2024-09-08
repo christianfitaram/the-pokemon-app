@@ -1,0 +1,12 @@
+Name : Christian Fita Ramirez
+
+Node version : "v20.13.1"
+
+Next.js version : "14.2.7"
+
+Time spent : 
+
+03/09 -> 2 hours
+04/09 -> 2 hours
+05/09 -> 3 hours
+
