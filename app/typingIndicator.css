@@ -1,0 +1,36 @@
+/* TypingIndicator.css */
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
+  }
+  
+  .typing-indicator span {
+    width: 8px;
+    height: 8px;
+    margin: 0 2px;
+    background-color: #9e9ea4;
+    border-radius: 50%;
+    display: inline-block;
+    animation: blink 1.5s infinite ease-in-out;
+  }
+  
+  .typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  
+  .typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+  
+  @keyframes blink {
+    0%, 80%, 100% {
+      opacity: 0;
+    }
+    40% {
+      opacity: 1;
+    }
+  }
+  

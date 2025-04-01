@@ -4,31 +4,35 @@
 
 /************ Custom Font ************/
 @font-face {
-	font-family: Centra;
-	src: url('../public/assets/font/CentraNo2-Bold.ttf');
-	font-weight: 700;
+  font-family: Centra;
+  src: url("../public/assets/font/CentraNo2-Bold.ttf");
+  font-weight: 700;
 }
 @font-face {
-	font-family: Centra;
-	src: url('../public/assets/font/CentraNo2-Medium.ttf');
-	font-weight: 500;
+  font-family: Centra;
+  src: url("../public/assets/font/CentraNo2-Medium.ttf");
+  font-weight: 500;
 }
 @font-face {
-	font-family: Centra;
-	src: url('../public/assets/font/CentraNo2-Book.ttf');
-	font-weight: 400;
+  font-family: Centra;
+  src: url("../public/assets/font/CentraNo2-Book.ttf");
+  font-weight: 400;
 }
 
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
-  --transparent : hsla(0,0%,100%,0);
-  --header-bg: hsla(0, 0%, 100%, .01);
+  --transparent: hsla(0, 0%, 100%, 0);
+  --header-bg: hsla(0, 0%, 100%, 0.01);
   --header-blur: 12px;
-  --header-border: hsla(0, 0%, 100%, .08);
+  --header-border: hsla(0, 0%, 100%, 0.08);
   --bs-navbar-padding-x: 0;
-  --bs-navbar-padding-y: .5rem;
+  --bs-navbar-padding-y: 0.5rem;
+  --bgColor-default: #0d1117;
+  --bgColor-default-2: #0c1320;
+  --bgColor-muted: #151b23;
+  --bgColor-muted-2: #142b2e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,10 +45,7 @@
 
 body {
   color: rgb(var(--foreground-rgb));
-  
-  background-image: 
-  conic-gradient(from 90deg at -10% 100%, #2b303b, #2b303b 90deg, #16181d 1turn);
-  font-family: 'Centra', sans-serif !important;
+  font-family: "Centra", sans-serif !important;
   overscroll-behavior: none;
   padding-top: 4rem;
 }
@@ -53,12 +54,12 @@ body {
   .text-balance {
     text-wrap: balance;
   }
-nav {
+  nav {
     position: fixed;
     width: 100%;
     top: 0;
     z-index: 9999;
-    transition: .32s ease-in-out;
+    transition: 0.32s ease-in-out;
     background: var(--header-bg) !important;
     border-bottom: 1px solid var(--header-border) !important;
     -webkit-backdrop-filter: blur(var(--header-blur));
@@ -67,15 +68,99 @@ nav {
     text-align: center;
     overscroll-behavior: none;
   }
-  footer{
+  footer {
     margin-top: 2rem;
-    margin-bottom: 2rem ;
+    margin-bottom: 2rem;
   }
   footer p {
     text-align: center;
-      font-weight: 400;
-      font-size: 14px;
-      color: #B8B8B8;
-      letter-spacing: 0.4px;
-    }
+    font-weight: 400;
+    font-size: 14px;
+    color: #b8b8b8;
+    letter-spacing: 0.4px;
+  }
+
+  .background-card {
+    background: linear-gradient(
+      136deg,
+      rgb(17, 17, 17) -47.25%,
+      rgb(30, 30, 30) 11.1%,
+      rgb(64, 22, 160) 93.37%,
+      rgb(63, 89, 228) 178.71%
+    );
+  }
+
+  .background-default {
+    background-color: var(--bgColor-default-2);
+  }
+
+  .background-muted {
+    background-color: var(--bgColor-muted-2);
+  }
+
+  .search {
+    background-image: url("https://upload.wikimedia.org/wikipedia/commons/5/53/Pok%C3%A9_Ball_icon.svg");
+    background-repeat: no-repeat;
+  }
+
+  .gradient {
+    background-color: #000;
+    background-image: radial-gradient(
+      circle 50vh at 0% 50%,
+      var(--gradient-color),
+      var(--bgColor-default-2)
+    );
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+  }
+
+  .gradient-badge {
+    background-color: #000;
+    background-image: radial-gradient(
+      circle 50vh at 0% 50%,
+      var(--gradient-color),
+      var(--bgColor-default-2)
+    );
+  }
+  /* chat box styles*/
+  .bg-header-chat {
+    background-color: #192833;
+  }
+  .primary-color {
+    color: #a3ede9;
+  }
+  .bg-body-chat{
+    background-color: #0c1320;
+  }
+  .bg-bubble-1{
+    background-color: #142b2e;
+  }
+  .bg-bubble-2{
+    background-color: #192833;
+  }
+  .bg-icon-header{
+    background-color: #254d52;
+  }
+  /* Custom scrollbar for chat */
+  .chat-container::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .chat-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  .chat-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+
+  .dark .chat-container::-webkit-scrollbar-track {
+    background: #374151;
+  }
+
+  .dark .chat-container::-webkit-scrollbar-thumb {
+    background: #4b5563;
+  }
 }
