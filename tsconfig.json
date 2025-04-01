@@ -26,12 +26,14 @@
         "./*"
       ]
     },
-    "target": "ES2017"
+    "target": "ES2017",
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "next-env.d.ts",
+    "next-env.d.ts"
+    // Remove .next/types from include
+    ,
     ".next/types/**/*.ts"
   ],
   "exclude": [

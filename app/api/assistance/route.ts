@@ -1,5 +1,3 @@
-import { PokemonComplete } from "@/types/chatTypes";
-import { data } from "framer-motion/client";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {

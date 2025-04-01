@@ -1,6 +1,6 @@
 // components/PokemonChat.tsx
 import { useState, useRef, useEffect } from "react";
-import { AssistantChatProps } from "@/types/types";
+import { AssistantChatProps, ChatMessage } from "@/types/types";
 import {
   FaUser,
   FaRobot,
@@ -9,7 +9,6 @@ import {
 import TypingIndicator from "./TypingIndicator";
 
 const AssistantChat: React.FC<AssistantChatProps> = ({
-  isUserChating,
   setIsUserChatting,
   messages,
   setMessages
@@ -28,7 +27,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    const userMessage = { role: "user", content: input };
+    const userMessage: ChatMessage = { role: "user", content: input };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
