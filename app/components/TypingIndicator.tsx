@@ -1,5 +1,5 @@
 import React from 'react';
-import '../typingindicator.css'; // Import the CSS for styling
+import '../typingIndicator.css'; // Import the CSS for styling
 
 const TypingIndicator = () => {
   return (

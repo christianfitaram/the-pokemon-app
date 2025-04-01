@@ -1,10 +1,5 @@
 import PokemonDetailsPage from "@/app/components/PokemonDetailsPage";
 
-interface PageProps {
-  params: { number: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}
-
 export default async function Page({
   params,
 }: {

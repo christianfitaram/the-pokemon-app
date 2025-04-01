@@ -12,7 +12,6 @@ import { useRecentlyViewed } from "../utils/useRecentlyViewed";
 const Search: React.FC<ToDisplayProps> = ({
   value,
   onChange,
-  isSearchOn,
   setisSearchOn,
   setIsUserChatting
 }) => {
