@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { fetchRandomPokemon } from "../utils/fetchspecials";
 import { useRouter } from "next/navigation";
 import { useRecentlyViewed } from "../utils/useRecentlyViewed";
+import { FaHome } from "react-icons/fa";
 
 const Search: React.FC<ToDisplayProps> = ({
   value,
@@ -259,7 +260,7 @@ const Search: React.FC<ToDisplayProps> = ({
           onClick={goToHome}
           className="border p-2 text-white rounded-lg hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
         >
-          Go Home
+          <FaHome className="h-5 w-5" />{" "}
         </button>
       </div>
     </div>
