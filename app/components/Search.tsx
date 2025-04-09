@@ -13,7 +13,7 @@ const Search: React.FC<ToDisplayProps> = ({
   value,
   onChange,
   setisSearchOn,
-  setIsUserChatting
+  setIsUserChatting,
 }) => {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [typeFilteredPokemons, setTypeFilteredPokemons] = useState<Pokemon[]>(
@@ -78,17 +78,17 @@ const Search: React.FC<ToDisplayProps> = ({
       const pokemonTemp: Pokemon = {
         name: poke.name,
         url: poke.url,
-        viewedAt: poke.viewedAt
+        viewedAt: poke.viewedAt,
       };
       pokemonRecent.push(pokemonTemp);
     });
     onChange(pokemonRecent);
     setisSearchOn(true);
   };
-  
+
   const showAssistantChat = () => {
-    setIsUserChatting(true)
-  }
+    setIsUserChatting(true);
+  };
   // Fetch Pokémon by selected type(s)
   useEffect(() => {
     async function fetchPokemonsByType() {
@@ -131,7 +131,10 @@ const Search: React.FC<ToDisplayProps> = ({
   const filteredDropdown = allPokemonNames.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
+  const goToHome = () => {
+    setisSearchOn(false);
+    onChange([]); // reset to default
+  };
   const handleDropdownSelect = (pokemon: Pokemon) => {
     onChange([pokemon]);
     setisSearchOn(true);
@@ -139,7 +142,7 @@ const Search: React.FC<ToDisplayProps> = ({
     setSearchQuery(pokemon.name);
   };
   return (
-    <div className="dark:background-muted flex flex-col items-center w-full my-4 py-4 relative">
+    <div className=" background-muted bg-gray-400 flex flex-col items-center w-full my-4 py-4 relative">
       {/* Search by Name */}
       <input
         type="text"
@@ -235,17 +238,28 @@ const Search: React.FC<ToDisplayProps> = ({
       </div>
       <div className="flex flex-row justify-center gap-4">
         <button
-          className="border p-2 rounded-lg  dark:hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
+          className="border p-2 rounded-lg text-white   hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
           onClick={getRandomPokemon}
         >
           Random pokemon
         </button>
-        <button className="border p-2 rounded-lg  dark:hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
-        onClick={toListRecentlyViewed}>
+        <button
+          className="border p-2 rounded-lg text-white   hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
+          onClick={toListRecentlyViewed}
+        >
           Recent viewed
         </button>
-        <button  onClick={showAssistantChat} className="border p-2 rounded-lg  dark:hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105">
+        <button
+          onClick={showAssistantChat}
+          className="border p-2 text-white  rounded-lg   hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
+        >
           Get AI help
+        </button>
+        <button
+          onClick={goToHome}
+          className="border p-2 text-white rounded-lg hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
+        >
+          Go Home
         </button>
       </div>
     </div>
@@ -285,7 +299,7 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
 
   return (
     <div className="flex flex-row items-center gap-4 mt-4">
-      <p className="font-[family-name:var(--font-geist-mono)] flex flex-col">
+      <p className="font-[family-name:var(--font-geist-mono)] text-white flex flex-col">
         Search by type:
       </p>
       <select

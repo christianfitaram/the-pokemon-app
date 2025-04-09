@@ -57,7 +57,7 @@ export const EvolutionCard: React.FC<EvolutionCardProps> = ({ name }) => {
         <div className="flex flex-col sm:flex-row gap-4">
           <div>
             <h5
-              className={`mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex flex-row justify-center`}
+              className={`mb-2 text-2xl font-bold tracking-tight  text-white flex flex-row justify-center`}
             >
               Evolution chain:
             </h5>

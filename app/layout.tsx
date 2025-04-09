@@ -29,10 +29,10 @@ export default function RootLayout({
     <html lang="en">
       <body
         suppressHydrationWarning={true}
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.className} dark: background-default`}
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.className}  background-default bg-gray-100`}
       >
         <nav>
-          <h1 className="text-2xl">
+          <h1 className="text-2xl text-white">
             <Link href={"/"}>The Pokemon APP</Link>
           </h1>
         </nav>

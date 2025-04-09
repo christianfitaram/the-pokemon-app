@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PokemonDetails } from "@/types/types";
-import { FaLongArrowAltLeft, FaCommentDots } from "react-icons/fa";
+import { FaLongArrowAltLeft, FaCommentDots, FaHome } from "react-icons/fa";
 import { typeColors, typeGradients } from "@/app/utils/typeColors";
 import { capitalizeFirstLetter } from "@/app/utils/functions";
 import PokemonChat from "@/app/components/PokemonChat";
@@ -81,27 +81,27 @@ export default function PokemonDetailsClient({ number }: Props) {
                 )}
               </div>
             ) : (
-              <div className="flex flex-col  flex-1 dark:background-muted w-fit p-8 rounded-3xl gap-3 ">
+              <div className="flex flex-col  flex-1  background-muted w-fit p-8 rounded-3xl gap-3 ">
                 <div className="flex flex-row w-full items-center justify-between">
                   <button
                     onClick={() => setShowPokemonChat(true)}
-                    className={`text-white rounded-full dark: ${themeColor} hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-200 dark:bg- dark:hover:bg-blue-700 dark:focus:ring-blue-900 text-sm inline-flex justify-center w-fit p-2 `}
+                    className={`text-white rounded-full   ${themeColor} focus:ring-4 focus:outline-none focus:ring-blue-200  bg-  hover:bg-blue-700   text-sm inline-flex justify-center w-fit p-2 `}
                   >
                     <FaCommentDots className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className={`text-white rounded-full dark: ${themeColor} hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-200 dark:bg- dark:hover:bg-blue-700 dark:focus:ring-blue-900 text-sm inline-flex justify-center w-fit p-2`}
+                    className={`text-white rounded-full   ${themeColor} focus:ring-4 focus:outline-none focus:ring-blue-200  bg-  hover:bg-blue-700  text-sm inline-flex justify-center w-fit p-2`}
                   >
-                    <FaLongArrowAltLeft className="h-5 w-5" />
+                    <FaHome className="h-5 w-5" />
                   </button>
                 </div>
                 <h5
-                  className={`mb-2 text-2xl font-bold tracking-tight ${textColor} dark:${textColor}] flex flex-row justify-center`}
+                  className={`mb-2 text-2xl font-bold tracking-tight ${textColor}  ${textColor}] flex flex-row justify-center`}
                 >
                   {pokemon?.name.toLocaleUpperCase()}
                 </h5>
-                <div className="grid grid-cols-2 w-fit">
+                <div className="grid grid-cols-2 w-fit text-gray-200">
                   <div className="border-r border-b  border-white">
                     <p className="p-2">Height</p>
                   </div>
@@ -115,14 +115,12 @@ export default function PokemonDetailsClient({ number }: Props) {
                     <p className="p-2">{pokemon?.weight}</p>
                   </div>
                 </div>
-                <p>Base experience: {pokemon?.base_experience}</p>
-                <div className="flex flex-row">
+                <p className="text-gray-200">Base experience: {pokemon?.base_experience}</p>
+                <div className="flex flex-row text-gray-200">
                   <div>
                     <p>TYPES:</p>
                   </div>
-                  <div>
-                    <hr />
-                  </div>
+                  <hr/>
                 </div>
                 <div className="flex flex-row gap-2 my-2">
                   {pokemon?.types.map((type) => {
@@ -173,7 +171,7 @@ const PokemonDetailsSkeleton: React.FC = () => {
           <div className="w-64 h-64 bg-gray-700 rounded-xl" />
   
           {/* Info Placeholder */}
-          <div className="flex flex-col flex-1 dark:background-muted w-fit p-8 rounded-3xl gap-4">
+          <div className="flex flex-col flex-1  background-muted w-fit p-8 rounded-3xl gap-4">
             <div className="flex flex-row w-full items-center justify-between">
               <div className="w-10 h-10 bg-gray-600 rounded-full" />
               <div className="w-10 h-10 bg-gray-600 rounded-full" />

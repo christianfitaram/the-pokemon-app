@@ -56,7 +56,7 @@ export default function PokemonChat({
             <h1 className="primary-color">
               {capitalizeFirstLetter(pokemonName)}
             </h1>
-            <div className="flex flex-row gap-1">
+            <div className="flex flex-row gap-1 text-gray-200">
               <span className="font-thin">Type:</span>
               <span>
                 {pokemon.types.map((type, index) => {
@@ -72,7 +72,7 @@ export default function PokemonChat({
           </div>
           <div className="flex flex-col">
             <span className="bg-icon-header rounded-full p-2">
-              <FaCommentDots className="h-6 w-6" />
+              <FaCommentDots className="h-6 w-6 text-gray-200" />
             </span>
           </div>
         </div>
@@ -120,7 +120,7 @@ export default function PokemonChat({
                   msg.role === "user"
                     ? "bg-bubble-1 text-right"
                     : "bg-bubble-2 text-left"
-                } w-fit inline-block px-3 py-1 rounded font-[family-name:var(--font-geist-mono)] `}
+                } w-fit inline-block px-3 py-1 rounded font-[family-name:var(--font-geist-mono)] text-gray-200 `}
               >
                 {msg.content}
               </div>
@@ -134,7 +134,7 @@ export default function PokemonChat({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           placeholder="Ask something..."
-          className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-2 mb-2 bg-body-chat"
+          className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-2 mb-2 bg-body-chat text-gray-200"
           disabled={loading}
         />
         <button
@@ -147,7 +147,7 @@ export default function PokemonChat({
       </div>
       <div className="flex flex-row justify-start ml-2 mb-2">
         <button onClick={onClick}>
-          <FaLongArrowAltLeft className="h-8 w-10" />
+          <FaLongArrowAltLeft className="h-8 w-10 text-gray-200" />
         </button>
       </div>
       </div>

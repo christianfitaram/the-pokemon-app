@@ -56,7 +56,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
               onClick={() => setIsUserChatting(false)}
               className="bg-icon-header rounded-full p-2"
             >
-              <FaPlusCircle className="h-6 w-6 rotate-45" />
+              <FaPlusCircle className="h-6 w-6 rotate-45 text-white" />
             </button>
           </div>
         </div>
@@ -98,7 +98,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
                     msg.role === "user"
                       ? "bg-bubble-1 text-right"
                       : "bg-bubble-2 text-left"
-                  } w-fit inline-block px-3 py-1 rounded font-[family-name:var(--font-geist-mono)] `}
+                  } w-fit inline-block px-3 py-1 rounded font-[family-name:var(--font-geist-mono)] text-gray-200 `}
                 >
                   {msg.content}
                 </div>
@@ -112,7 +112,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             placeholder="Ask something..."
-            className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-2 mb-2 bg-body-chat"
+            className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-2 mb-2 bg-body-chat text-gray-200"
             disabled={loading}
           />
           <button
@@ -137,7 +137,7 @@ const AssistantIsWriting = () => {
         </span>
         AI Assitant
       </div>
-      <div className="bg-bubble-2 text-left w-fit inline-block px-3 py-1 rounded">
+      <div className="bg-bubble-2 text-left w-fit inline-block px-3 py-1 rounded text-gray-200">
         <TypingIndicator />
       </div>
     </div>

@@ -55,12 +55,12 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview }, key) => {
       href={`/details/${randomPokemons?.name}`}
       className="relative flex flex-col items-center justify-center text-center 
         w-full h-full p-6  rounded-tr-3xl rounded-bl-3xl shadow 
-        hover:bg-gray-100 dark:background-muted dark:border-gray-700 dark:hover:bg-gray-700 
+       background-muted  border-gray-700  hover:bg-gray-700 
         background-muted overflow-hidden transition-transform duration-300 ease-in-out hover:scale-105"
     >
       {/* Left Half Gradient Background with Dim Overlay */}
       <div
-        className={`absolute left-0 top-0 w-full h-1/4 bg-gradient-to-l ${gradientClass} opacity-75rounded-tr-3xl rounded-bl-3xl pt-2`}
+        className={`absolute left-0 top-0 w-full h-1/4 bg-gradient-to-l ${gradientClass} opacity-75rounded-tr-3xl rounded-bl-3xl pt-2 text-gray-200`}
       >
         EXP: {randomPokemons?.base_experience}
       </div>
@@ -76,7 +76,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview }, key) => {
             className="w-40 h-40 object-contain mx-auto"
           />
         )}
-        <h5 className="mb-2 text-lg font-bold tracking-tight text-gray-100  font-[family-name:var(--font-geist-mono)]">
+        <h5 className="mb-2 text-lg font-bold tracking-tight text-gray-100 hover:text-gray-900 font-[family-name:var(--font-geist-mono)]">
           {randomPokemons?.name.toUpperCase()}
         </h5>
         <div className="flex flex-col gap-4">
