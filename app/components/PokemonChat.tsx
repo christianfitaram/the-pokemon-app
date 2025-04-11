@@ -50,106 +50,107 @@ export default function PokemonChat({
   return (
     <div className="bg-body-chat w-full rounded-b-3xl">
       <div className="flex flex-col p-4">
-      <div className="mb-2 font-bold text-lg ">
-        <div className="flex rounded-t-3xl flex-row bg-header-chat p-4 items-center justify-between">
-          <div className="flex flex-col">
-            <h1 className="primary-color">
-              {capitalizeFirstLetter(pokemonName)}
-            </h1>
-            <div className="flex flex-row gap-1 text-gray-200">
-              <span className="font-thin">Type:</span>
-              <span>
-                {pokemon.types.map((type, index) => {
-                  const typeName = type.type.name;
-                  const lastIndex = pokemon.types.length - 1;
+        <div className="mb-2 font-bold text-lg ">
+          <div className="flex rounded-t-3xl flex-row bg-header-chat p-4 items-center justify-between">
+            <div className="flex flex-col">
+              <h1 className="primary-color">
+                {capitalizeFirstLetter(pokemonName)}
+              </h1>
+              <div className="flex flex-row gap-1 text-gray-200">
+                <span className="font-thin">Type:</span>
+                <span>
+                  {pokemon.types.map((type, index) => {
+                    const typeName = type.type.name;
+                    const lastIndex = pokemon.types.length - 1;
 
-                  if (index === 0) return typeName;
-                  if (index === lastIndex) return ` and ${typeName}`;
-                  return `, ${typeName}`;
-                })}
+                    if (index === 0) return typeName;
+                    if (index === lastIndex) return ` and ${typeName}`;
+                    return `, ${typeName}`;
+                  })}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <span className="bg-icon-header rounded-full p-2">
+                <FaCommentDots className="h-6 w-6 text-gray-200" />
               </span>
             </div>
           </div>
-          <div className="flex flex-col">
-            <span className="bg-icon-header rounded-full p-2">
-              <FaCommentDots className="h-6 w-6 text-gray-200" />
-            </span>
-          </div>
-        </div>
-        <div
-          ref={messagesEndRef}
-          className="h-64 overflow-y-auto p-2 bg-body-chat mb-2"
-        >
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`mb-2 ${
-                msg.role === "user" ? "text-right" : "text-left"
-              }`}
-            >
+          <div
+            ref={messagesEndRef}
+            className="h-64 overflow-y-auto p-2 bg-body-chat mb-2"
+          >
+            {messages.map((msg, idx) => (
               <div
-                className={`primary-color flex flex-wrap gap-3 items-center mb-2 ${
-                  msg.role === "user" ? "text-right justify-end" : "text-left"
+                key={idx}
+                className={`mb-2 ${
+                  msg.role === "user" ? "text-right" : "text-left"
                 }`}
               >
-                {msg.role === "user" ? (
-                  <>
-                    You
-                    <span className="bg-icon-header rounded-full p-2">
-                      <FaUser className="h-6 w-6" />
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="bg-icon-header rounded-full p-2">
-                      <img
-                        src={
-                          pokemon.sprites.other["official-artwork"]
-                            .front_default
-                        }
-                        alt={pokemon.name}
-                        className="h-6 w-6"
-                      />
-                    </span>
-                    {capitalizeFirstLetter(pokemonName)}
-                  </>
-                )}
+                <div
+                  className={`primary-color flex flex-wrap gap-3 items-center mb-2 ${
+                    msg.role === "user" ? "text-right justify-end" : "text-left"
+                  }`}
+                >
+                  {msg.role === "user" ? (
+                    <>
+                      You
+                      <span className="bg-icon-header rounded-full p-2">
+                        <FaUser className="h-6 w-6" />
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="bg-icon-header rounded-full p-2">
+                        <img
+                          src={
+                            pokemon.sprites.other["official-artwork"]
+                              .front_default
+                          }
+                          alt={pokemon.name}
+                          className="h-6 w-6"
+                        />
+                      </span>
+                      {capitalizeFirstLetter(pokemonName)}
+                    </>
+                  )}
+                </div>
+                <div
+                  className={`${
+                    msg.role === "user"
+                      ? "bg-bubble-1 text-right"
+                      : "bg-bubble-2 text-left"
+                  } w-fit inline-block px-3 py-1 rounded font-[family-name:var(--font-geist-mono)] text-gray-200 `}
+                >
+                  {msg.content}
+                </div>
               </div>
-              <div
-                className={`${
-                  msg.role === "user"
-                    ? "bg-bubble-1 text-right"
-                    : "bg-bubble-2 text-left"
-                } w-fit inline-block px-3 py-1 rounded font-[family-name:var(--font-geist-mono)] text-gray-200 `}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {loading && <PokemonIsWriting pokemon={pokemon} />}
+            ))}
+            {loading && <PokemonIsWriting pokemon={pokemon} />}
+          </div>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            placeholder="Ask something..."
+            className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-2 mb-2 bg-body-chat text-gray-200"
+            disabled={loading}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading}
+            className="bg-blue-500 text-white px-4 py-2 rounded w-full"
+          >
+            {loading ? "Talking..." : "Send"}
+          </button>
         </div>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder="Ask something..."
-          className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-2 mb-2 bg-body-chat text-gray-200"
-          disabled={loading}
-        />
-        <button
-          onClick={sendMessage}
-          disabled={loading}
-          className="bg-blue-500 text-white px-4 py-2 rounded w-full"
-        >
-          {loading ? "Talking..." : "Send"}
-        </button>
-      </div>
-      <div className="flex flex-row justify-start ml-2 mb-2">
-        <button onClick={onClick}>
-          <FaLongArrowAltLeft className="h-8 w-10 text-gray-200" />
-        </button>
-      </div>
+        <div className="flex flex-row justify-start ml-2 mb-2">
+          <button onClick={onClick}>
+            Back
+            <FaLongArrowAltLeft className="h-8 w-10 text-gray-200" />
+          </button>
+        </div>
       </div>
     </div>
   );

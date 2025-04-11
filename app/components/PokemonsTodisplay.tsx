@@ -44,10 +44,17 @@ const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
               </div>
             </div>
           ) : (
+            // Render the actual PokemonCard component
             <PokemonCard pokemonOverview={pokemon} key={key} />
           )
         )}
       </div>
+      {/* Display message if loading is done but no Pokémon were found */}
+      {!loading && pokemons.length === 0 && (
+        <p className="text-center text-muted-foreground mt-4">
+          No Pokémon found.
+        </p>
+      )}
       {/* Pagination Section (Separate from Grid) */}
       {!loading && !isSearchOn && (
         <div className="w-full flex justify-center mt-4">

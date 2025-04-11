@@ -91,9 +91,10 @@ export default function PokemonDetailsClient({ number }: Props) {
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className={`text-white rounded-full   ${themeColor} focus:ring-4 focus:outline-none focus:ring-blue-200  bg-  hover:bg-blue-700  text-sm inline-flex justify-center w-fit p-2`}
+                    className={`text-white rounded-full   ${themeColor} focus:ring-4 focus:outline-none focus:ring-blue-200  bg-  hover:bg-blue-700  text-sm inline-flex justify-center w-fit p-2 mx-2`}
                   >
-                    <FaHome className="h-5 w-5" />
+                    <FaHome className="h-5 w-5" /> 
+                    <span className="px-2">Go Home</span>
                   </button>
                 </div>
                 <h5
