@@ -96,7 +96,11 @@ export default function PokemonDetailsClient({ number }: Props) {
           <div className="flex flex-col lg:flex-row items-center justify-center gap-8 max-w-5xl w-full">
             <div className="flex flex-col">
               <Image
-                src={pokemon?.sprites.other["official-artwork"].front_default || pokemon?.sprites.front_default || "/assets/img/question-mark.png"}
+                src={
+                  pokemon?.sprites.other["official-artwork"].front_default ||
+                  pokemon?.sprites.front_default ||
+                  "/assets/img/question-mark.png"
+                }
                 alt={pokemon?.name || "Pokemon Image"}
                 width={475}
                 height={475}
@@ -116,11 +120,10 @@ export default function PokemonDetailsClient({ number }: Props) {
               <div className="flex flex-col  flex-1  background-muted w-fit p-8 rounded-3xl gap-3 ">
                 <div className="flex flex-row w-full items-center justify-between">
                   <div
-                  onClick={() => setShowPokemonChat(true)}
+                    onClick={() => setShowPokemonChat(true)}
                     className={`${gradientClass} rounded-full flex flex-row items-center px-4 cursor-pointer hover:opacity-80`}
                   >
                     <button
-                      
                       className={`text-white rounded-full focus:ring-4 focus:outline-none focus:ring-blue-200  text-sm inline-flex justify-center w-fit p-2 `}
                     >
                       <FaCommentDots className="h-5 w-5" />
@@ -133,7 +136,6 @@ export default function PokemonDetailsClient({ number }: Props) {
                   >
                     <FaHome className="h-5 w-5" />
                     <span className="px-2">Go Home</span>
-                    
                   </button>
                 </div>
                 <h5
@@ -152,7 +154,9 @@ export default function PokemonDetailsClient({ number }: Props) {
                     <p className="p-2">Weight</p>
                   </div>
                   <div className="border-l border-t  border-white">
-                    <p className="p-2">{(pokemon?.weight / 10).toFixed(1)} kg</p>
+                    <p className="p-2">
+                      {(pokemon?.weight / 10).toFixed(1)} kg
+                    </p>
                   </div>
                 </div>
                 <p className="text-gray-200">
@@ -162,7 +166,7 @@ export default function PokemonDetailsClient({ number }: Props) {
               </div>
             )}
           </div>
-          <div className="w-full max-w-6xl px-4">
+          <div className="w-full max-w-6xl px-4 flex flex-col gap-4">
             {pokemon && <EvolutionCard name={pokemon.name} />}
           </div>
         </>

@@ -62,7 +62,7 @@ async function runSecurityTests() {
       options: {
         headers: {
           'Content-Type': 'application/json',
-          'x-frontend-secret': process.env.FRONTEND_SECRET || 'your-secret-key-change-this'
+          'x-frontend-secret': process.env.FRONTEND_SECRET || 'my-super-secure-secret-key-2024'
         }
       },
       expectedStatus: 200
