@@ -108,7 +108,7 @@ export default function PokemonDetailsClient({ number }: Props) {
               />
             </div>
             {showPokemonChat ? (
-              <div className="flex flex-col flex-1 w-fit rounded-3xl">
+              <div className="flex flex-col flex-1 w-fit rounded-3xl max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl">
                 {pokemon && (
                   <PokemonChat
                     pokemon={pokemon}
