@@ -6,9 +6,10 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3001',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
-  // Production domains - ADD YOUR ACTUAL DOMAIN HERE
-  'https://project1.enricfitaram.dev/',
+  // Production domains
+  'https://project1.enricfitaram.dev',
   'https://www.project1.enricfitaram.dev',
+  // Add your actual production domain here if different
 ];
 
 const FRONTEND_SECRET = process.env.FRONTEND_SECRET || 'my-super-secure-secret-key-2024';
@@ -34,9 +35,13 @@ export function middleware(request: NextRequest) {
 
   // 1. Origin check
   const origin = request.headers.get('origin');
+  console.log('🔍 Middleware - Origin:', origin);
+  console.log('🔍 Middleware - Allowed origins:', ALLOWED_ORIGINS);
+  
   if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    console.log('❌ Middleware - Origin not allowed:', origin);
     return new NextResponse(
-      JSON.stringify({ error: 'Unauthorized origin' }),
+      JSON.stringify({ error: 'Unauthorized origin', received: origin, allowed: ALLOWED_ORIGINS }),
       { 
         status: 403,
         headers: { 'Content-Type': 'application/json' }
@@ -46,9 +51,13 @@ export function middleware(request: NextRequest) {
 
   // 2. Custom header check
   const frontendSecret = request.headers.get('x-frontend-secret');
+  console.log('🔍 Middleware - Frontend secret provided:', !!frontendSecret);
+  console.log('🔍 Middleware - Expected secret configured:', !!FRONTEND_SECRET);
+  
   if (frontendSecret !== FRONTEND_SECRET) {
+    console.log('❌ Middleware - Secret mismatch');
     return new NextResponse(
-      JSON.stringify({ error: 'Invalid frontend secret' }),
+      JSON.stringify({ error: 'Invalid frontend secret', secretProvided: !!frontendSecret, secretConfigured: !!FRONTEND_SECRET }),
       { 
         status: 403,
         headers: { 'Content-Type': 'application/json' }
