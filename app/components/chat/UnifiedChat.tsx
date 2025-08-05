@@ -285,7 +285,7 @@ export default function UnifiedChat({
         initial={{ rotateY: 90, opacity: 0 }}
         animate={{ rotateY: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 20 }}
-        className="bg-body-chat w-full rounded-b-3xl"
+        className="bg-body-chat w-full rounded-xl border shadow-xl"
       >
         {content}
       </motion.div>
