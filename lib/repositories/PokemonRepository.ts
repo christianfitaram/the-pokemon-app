@@ -5,14 +5,80 @@ import { FetchError } from "../error_handling/FetchError";
 
 const BASE_URL = "https://pokeapi.co/api/v2";
 
+// Simple in-memory cache
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Request throttling
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 100; // Minimum 100ms between requests
+
 export class PokemonRepository {
-  static async fetchWithErrorHandling(url: string) {
-    const res = await fetch(url);
-    if (!res.ok) {
-      const message = `Failed to fetch ${url} - Status: ${res.status} ${res.statusText}`;
-      throw new FetchError(res.status, message);
+  private static getCachedData(key: string) {
+    const cached = cache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
     }
-    return res.json();
+    return null;
+  }
+
+  private static setCachedData(key: string, data: any) {
+    cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  private static async throttleRequest() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    
+    if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+      const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    lastRequestTime = Date.now();
+  }
+
+  static async fetchWithErrorHandling(url: string, retries = 3, delay = 1000) {
+    // Check cache first
+    const cachedData = this.getCachedData(url);
+    if (cachedData) {
+      return cachedData;
+    }
+
+    // Throttle requests
+    await this.throttleRequest();
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url);
+        
+        if (res.status === 429 && attempt < retries) {
+          // Rate limited - wait with exponential backoff
+          const waitTime = delay * Math.pow(2, attempt);
+          console.log(`Rate limited, retrying in ${waitTime}ms (attempt ${attempt + 1}/${retries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+        
+        if (!res.ok) {
+          const message = `Failed to fetch ${url} - Status: ${res.status} ${res.statusText}`;
+          throw new FetchError(res.status, message);
+        }
+        
+        const data = await res.json();
+        
+        // Cache the successful response
+        this.setCachedData(url, data);
+        
+        return data;
+      } catch (error) {
+        if (attempt === retries) {
+          throw error;
+        }
+        // For other errors, wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
 
   static async getAllPokemons(): Promise<Response> {
