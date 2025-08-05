@@ -6,11 +6,12 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3001',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
-  // Add your production domain here
-  // 'https://your-domain.com',
+  // Production domains - ADD YOUR ACTUAL DOMAIN HERE
+  'https://project1.enricfitaram.dev/',
+  'https://www.project1.enricfitaram.dev',
 ];
 
-const FRONTEND_SECRET = process.env.FRONTEND_SECRET || 'your-secret-key-change-this';
+const FRONTEND_SECRET = process.env.FRONTEND_SECRET || 'my-super-secure-secret-key-2024';
 
 // Rate limiting store (in production, use Redis or similar)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -21,10 +22,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Skip security checks in development if no secret is set
+  // Security check configuration
   const isDevelopment = process.env.NODE_ENV === 'development';
-  const hasSecret = FRONTEND_SECRET && FRONTEND_SECRET !== 'your-secret-key-change-this';
+  const hasSecret = FRONTEND_SECRET && FRONTEND_SECRET !== 'my-super-secure-secret-key-2024';
 
+  // Skip security checks in development if no secret is set
   if (isDevelopment && !hasSecret) {
     console.warn('⚠️  Security middleware disabled in development. Set FRONTEND_SECRET to enable.');
     return NextResponse.next();
@@ -55,7 +57,9 @@ export function middleware(request: NextRequest) {
   }
 
   // 3. Rate limiting
-  const clientIP = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  const clientIP = request.headers.get('x-forwarded-for') || 
+                   request.headers.get('x-real-ip') || 
+                   'unknown';
   const now = Date.now();
   const windowMs = 15 * 60 * 1000; // 15 minutes
   const maxRequests = 100; // Max requests per window
