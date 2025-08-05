@@ -1,82 +1,82 @@
-import { capitalizeFirstLetter } from "@/app/utils/functions";
+import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
 import { useEffect, useState } from "react";
-import { Pokemon, PokemonDetailsRandom } from "@/types/types";
+import { Pokemon, PokemonDetails } from "@/types/types";
 import Link from "next/link";
-import { typeGradients } from "@/app/utils/typeColors";
+import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
+import formatDateTime from "../../utils/formatDateTime";
+import getGradientColor from "../../utils/getUIcolors";
+import Image from "next/image";
 
 interface PokemonCardProps {
   pokemonOverview: Pokemon;
 }
 
-const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview }, key) => {
-  const [randomPokemons, setRandomPokemons] =
-    useState<PokemonDetailsRandom | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview }) => {
+  const [randomPokemons, setRandomPokemons] = useState<PokemonDetails | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
+  const [gradientClass, setGradientClass] = useState<string | null>(null);
 
+  //Lets fetch the pokemon data to display in card
   useEffect(() => {
-    if (!pokemonOverview.url) return;
-
-    const fetchPokemonDetails = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${pokemonOverview.url}`);
-        if (!res.ok) {
-          throw new Error("Failed to fetch Pokémon details");
-        }
-        const data = await res.json();
-        setRandomPokemons(data);
-      } catch (error) {
-        setError((error as Error).message);
-      } finally {
-        setLoading(false);
+    async function fetchPokemon() {
+      const result = await PokemonApiClient.getPokemonByName(
+        pokemonOverview.name
+      );
+      if (result.success && result.data) {
+        setRandomPokemons(result.data);
+      } else {
+        setError(result.error || "Unknown error");
+        console.log(error);
       }
-    };
+    }
+    fetchPokemon();
+  }, [pokemonOverview.name]);
+  //Lets assign the gradient for the top bar
+  useEffect(() => {
+    if (randomPokemons) {
+      setGradientClass(getGradientColor(randomPokemons));
+    }
+  }, [randomPokemons]);
 
-    fetchPokemonDetails();
-  }, [pokemonOverview.url]);
-
-  // Get the first type of the Pokémon
-  const primaryType = randomPokemons?.types?.[0]?.type?.name || "normal";
-  const gradientClass = typeGradients[primaryType] || typeGradients["normal"];
-
-  const formatDateTime = (timestamp: number): string => {
-    const date = new Date(timestamp);
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    return `${day}/${month}/${year}, ${hours}:${minutes}`;
-  };
   return (
     <Link
       href={`/details/${randomPokemons?.name}`}
       className="relative flex flex-col items-center justify-center text-center 
         w-full h-full p-6  rounded-tr-3xl rounded-bl-3xl shadow 
-       background-muted  border-gray-700  hover:bg-gray-700 
+       background-muted  border-gray-700  hover:bg-gray-600 
         background-muted overflow-hidden transition-transform duration-300 ease-in-out hover:scale-105"
     >
       {/* Left Half Gradient Background with Dim Overlay */}
       <div
-        className={`absolute left-0 top-0 w-full h-1/4 bg-gradient-to-l ${gradientClass} opacity-75rounded-tr-3xl rounded-bl-3xl pt-2 text-gray-200`}
+        className={`absolute left-0 top-0 w-full h-1/4 bg-gradient-to-l ${gradientClass} opacity-75 rounded-tr-3xl rounded-bl-3xl pt-2 text-gray-200 z-0`}
       >
-        EXP: {randomPokemons?.base_experience}
+        <span className="!text-white z-10">EXP: {randomPokemons?.base_experience}</span>
       </div>
 
       {/* Semi-Transparent Dark Overlay to Further Dim */}
       <div className="absolute left-0 top-0 w-full h-full bg-black opacity-5 rounded-l-lg"></div>
 
       <div className="flex flex-col items-center justify-center h-full relative z-10">
-        {randomPokemons?.sprites?.other["official-artwork"].front_default && (
-          <img
-            src={randomPokemons.sprites.other["official-artwork"].front_default}
-            alt={randomPokemons?.name}
+        {randomPokemons?.sprites?.other["official-artwork"].front_default || randomPokemons?.sprites?.front_default ? (
+          <Image
+            src={randomPokemons?.sprites?.other["official-artwork"].front_default || randomPokemons?.sprites?.front_default || "/assets/img/question-mark.png"}
+            alt={randomPokemons?.name || "Pokemon Image"}
+            width={160}
+            height={160}
+            className="w-40 h-40 object-contain mx-auto"
+          />
+        ) : (
+          <Image
+            src="/assets/img/question-mark.png"
+            alt="Pokemon Image"
+            width={160}
+            height={160}
             className="w-40 h-40 object-contain mx-auto"
           />
         )}
-        <h5 className="mb-2 text-lg font-bold tracking-tight text-gray-100 hover:text-gray-900 font-[family-name:var(--font-geist-mono)]">
+        <h5 className="mb-2 text-lg font-bold tracking-tight text-gray-100 font-[family-name:var(--font-geist-mono)]">
           {randomPokemons?.name.toUpperCase()}
         </h5>
         <div className="flex flex-col gap-4">

@@ -1,171 +1,126 @@
 
-# 🧬 Pokémon App Documentation
+# The Pokemon App
 
-## 📦 Overview
+A modern Pokemon application built with Next.js, featuring chat functionality with Pokemon and an AI assistant.
 
-This app is a modern Pokémon browser built with **React + Next.js**, featuring rich animations, type-based search, evolutionary data, and AI-powered chat—both with an assistant and with Pokémon themselves.
+## Features
 
----
+- 🎮 **Pokemon Database**: Browse and search through Pokemon data
+- 💬 **AI Chat Assistant**: Get help and information about Pokemon
+- 🎭 **Pokemon Roleplay Chat**: Chat with individual Pokemon characters
+- 🔍 **Advanced Search**: Search by name, type, and other criteria
+- 📱 **Responsive Design**: Works on desktop and mobile devices
+- 🔒 **Secure API**: Protected endpoints with origin validation and rate limiting
 
-## 📁 Components
+## Security Features
 
-### 🧠 `AssistantChat.tsx`
-A general-purpose assistant chat using OpenAI (or similar API).  
-**Features:**
-- Scrollable chat with user and assistant messages.
-- Typing indicator.
-- Submit via Enter or Send button.
-- Assistant fetches response from `/api/assistance`.
+This application includes comprehensive security measures to protect API endpoints:
 
-### 💬 `PokemonChat.tsx`
-Interactive chat interface between the user and a specific Pokémon.  
-**Features:**
-- Pokémon greets the user.
-- Type-aware styling.
-- Real-time responses from `/api/chat`.
-- Avatar shown using the Pokémon's official artwork.
-- Typing indicator while the AI is responding.
+- **Origin-based Restrictions**: Only requests from allowed domains are accepted
+- **Custom Header Authentication**: All requests must include a secret header
+- **Rate Limiting**: Prevents abuse with configurable request limits
+- **Security Headers**: Additional protection against common attacks
 
-### 🧪 `PokemonCard.tsx`
-Displays a visual card for a Pokémon with dynamic styling based on type.  
-**Features:**
-- Hover animation.
-- Type badge(s).
-- Viewed timestamp (if available).
-- Background gradient based on type.
+See [SECURITY_SETUP.md](./SECURITY_SETUP.md) for detailed configuration instructions.
 
-### 🔍 `Search.tsx`
-Main entry point for searching Pokémon by:
-- Name (with real-time dropdown).
-- Type (multi-select).
-- Random Pokémon generator.
-- Recently viewed Pokémon.
-- Link to open the Assistant chat.
+## Getting Started
 
-### 🧬 `EvolutionCard.tsx`
-Displays the entire evolution chain of a Pokémon.  
-**Uses:**
-- `/pokemon-species/:name` and its `evolution_chain.url`.
-- Recursively collects and maps over all evolution stages.
-- Renders each stage with a `PokemonCard`.
+### Prerequisites
 
-### 🧾 `PokemonDetailsPage.tsx`
-Detailed view of an individual Pokémon.  
-**Features:**
-- Image, name, height, weight, types.
-- Type icon styling.
-- Animated appearance with Framer Motion.
-- Button to start a chat with the Pokémon.
-- Button to go back to the home screen.
-- Embedded `EvolutionCard`.
+- Node.js 18+ 
+- npm or yarn
+- OpenAI API key
+- PostgreSQL database (optional, for enhanced features)
 
-### 🎴 `Pokemons.tsx`
-Initial list rendering logic + pagination for the main Pokémon list.  
-**Features:**
-- Fetches from the PokéAPI.
-- Fallback to `value` for displaying filtered/search results.
-- Delegates rendering to `PokemonsToDisplay`.
+### Installation
 
-### 🧾 `PokemonsToDisplay.tsx`
-Paginated grid view of Pokémon cards.  
-**Features:**
-- Handles pagination (start, prev, next, end).
-- Uses `PokemonCard`.
-- Displays loading skeletons while fetching data.
-
-### ⌨️ `TypingIndicator.tsx`
-A 3-dot animated typing indicator used in both chat components.
-
----
-
-## 🧠 State Management
-
-- **Local state** is used for most interactions (`useState`, `useEffect`, `useRef`).
-- **Props drilling** is used between parent/child components (e.g., `value`, `onChange`, `isSearchOn`, etc.)
-- Recently viewed Pokémon are handled via a custom hook `useRecentlyViewed()`.
-
----
-
-## 🔧 Utility Files
-
-### `functions.tsx`
-Helper functions:
-```ts
-capitalizeFirstLetter(text: string): string
-getRandomNumber(): number // random from 1 to 1302
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd the-pokemon-app
 ```
 
-### `typeColors.ts`
-Defines type-specific colors and gradients (e.g. for UI themes, backgrounds, badges).
-
-### `useRecentlyViewed.tsx`
-Custom React hook for localStorage-backed recent Pokémon tracking:
-```ts
-useRecentlyViewed(limit = 10) => {
-  recent: Pokemon[],
-  savePokemon(name: string, url: string)
-}
+2. Install dependencies:
+```bash
+npm install
 ```
 
----
-
-## 🔍 Search & Fetch Utilities
-
-### `fetchspecials.tsx`
-- `fetchRandomPokemon()` → returns a random Pokémon name.
-- `getLastPage(n: number)` → gets the last page for pagination.
-- `fetchPokemon(url: string)` → used by `searchEngine` to fetch Pokémon by type.
-
-### `searchEngine.tsx`
-Filters Pokémon by selected types:
-```ts
-searchEngine(["fire", "electric"]) => Promise<Pokemon[]>
+3. Set up environment variables:
+```bash
+cp .env.local.example .env.local
+# Edit .env.local with your configuration
 ```
 
----
-
-## 🧪 API Routes
-
-### `/api/assistance`
-**Used by:** `AssistantChat.tsx`  
-**Request:**
-```json
-{
-  "chatHistory": [ { "role": "user", "content": "Hi!" } ]
-}
-```
-**Response:**
-```json
-{ "reply": "Hello! How can I help you today?" }
+4. Run the development server:
+```bash
+npm run dev
 ```
 
-### `/api/chat`
-**Used by:** `PokemonChat.tsx`  
-**Request:**
-```json
-{
-  "pokemon": "pikachu",
-  "chatHistory": [ { "role": "user", "content": "Hello" } ]
-}
-```
-**Response:**
-```json
-{ "reply": "Pika pika!" }
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Testing Security
+
+To verify that your API endpoints are properly secured:
+
+```bash
+npm run test:security
 ```
 
----
+## Environment Variables
 
-## 🧪 External APIs
+Create a `.env.local` file with the following variables:
 
-- **[PokéAPI](https://pokeapi.co/)**
-  - Pokémon list: `https://pokeapi.co/api/v2/pokemon/`
-  - Pokémon species: `https://pokeapi.co/api/v2/pokemon-species/:name`
-  - Evolution chain URL is retrieved from species data.
+```bash
+# Security Configuration
+FRONTEND_SECRET=your-super-secret-key-change-this-in-production
+NEXT_PUBLIC_FRONTEND_SECRET=your-super-secret-key-change-this-in-production
 
----
+# OpenAI Configuration
+OPENAI_API_KEY=your-openai-api-key
 
-## 💡 UX/UI Notes
+# Database Configuration (optional)
+DATABASE_URL=your-database-url
+```
 
-- All cards and chat UIs are styled with Tailwind CSS.
-- Animations are handled using **Framer Motion**.
-- Gradient backgrounds are type-aware using custom utility: `typeColors`, `typeGradients`.
+## API Endpoints
+
+All API endpoints are protected by security middleware:
+
+- `/api/pokemons/*` - Pokemon data endpoints
+- `/api/assistance` - AI assistant chat
+- `/api/chat-roleplay` - Pokemon roleplay chat
+
+## Technologies Used
+
+- **Frontend**: Next.js 15, React 18, TypeScript
+- **Styling**: Tailwind CSS, Framer Motion
+- **AI**: OpenAI GPT-4
+- **Database**: PostgreSQL with pgvector (optional)
+- **Security**: Custom middleware with origin validation and rate limiting
+
+## Project Structure
+
+```
+the-pokemon-app/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes (protected)
+│   ├── components/        # React components
+│   └── ...
+├── lib/                   # Utility libraries
+├── utils/                 # Helper functions
+├── types/                 # TypeScript type definitions
+├── middleware.ts          # Security middleware
+└── SECURITY_SETUP.md      # Security configuration guide
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test the security measures
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.

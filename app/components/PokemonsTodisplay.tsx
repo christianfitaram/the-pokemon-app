@@ -4,25 +4,25 @@ interface PokemonsToDisplayProps {
   pokemons: Pokemon[];
   prevtUrl: string | null;
   nextUrl: string | null;
-  lastUrl: string;
   loading: boolean;
   isSearchOn: boolean;
-  fetchPokemon: (url: string) => void;
+  fetchPokemon: (url: string | undefined, isInitial: boolean) => void;
+  fetchLastPage: () => void;
 }
 
 const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
   pokemons,
   prevtUrl,
   nextUrl,
-  lastUrl,
   loading,
   isSearchOn,
   fetchPokemon,
+  fetchLastPage
 }) => {
   return (
     <div className="z-0 flex flex-col items-center justify-center w-full max-w-screen-xl space-y-6 px-4 sm:px-8">
       {/* Pokémon Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8 w-full place-items-stretch">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full place-items-stretch">
         {pokemons.map((pokemon, key) =>
           loading ? (
             <div
@@ -61,8 +61,9 @@ const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
           <div className="flex gap-4">
             <button
               type="button"
-              onClick={() => fetchPokemon("https://pokeapi.co/api/v2/pokemon/")}
-              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800"
+              disabled={!prevtUrl}
+              onClick={() => fetchPokemon(undefined, true)}
+              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:bg-blue-900"
             >
               &#10094; Start
             </button>
@@ -70,8 +71,8 @@ const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
             <button
               type="button"
               disabled={!prevtUrl}
-              onClick={() => fetchPokemon(prevtUrl || "")}
-              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800"
+              onClick={() => fetchPokemon(prevtUrl || "", false)}
+              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:bg-blue-900"
             >
               &#10094;
             </button>
@@ -79,16 +80,17 @@ const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
             <button
               type="button"
               disabled={!nextUrl}
-              onClick={() => fetchPokemon(nextUrl || "")}
-              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800"
+              onClick={() => fetchPokemon(nextUrl || "", false)}
+              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:bg-blue-900"
             >
               &#10095;
             </button>
 
             <button
               type="button"
-              onClick={() => fetchPokemon(lastUrl)}
-              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800"
+              disabled={!nextUrl}
+              onClick={() => fetchLastPage()}
+              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800  disabled:bg-blue-900"
             >
               End &#10095;
             </button>

@@ -38,7 +38,7 @@ export default function RootLayout({
         </nav>
         {children}
         <footer>
-          <p>Made with ❤️ by me in Barcelona</p>
+          <p>Made with ❤️ by <a href="https://enricfitaram.dev" target="_blank" rel="noopener noreferrer">Christian Fita</a> in Barcelona</p>
           <p>There is no CopyRight. Do as you please.</p>
         </footer>
       </body>

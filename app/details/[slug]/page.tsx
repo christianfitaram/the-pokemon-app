@@ -1,4 +1,4 @@
-import PokemonDetailsPage from "@/app/components/PokemonDetailsPage";
+import PokemonDetailsPage from "@/app/components/pokemon-details/PokemonDetailsPage";
 
 export default async function Page({
   params,
@@ -6,8 +6,6 @@ export default async function Page({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  console.log(slug)
-
   return <PokemonDetailsPage number={slug} />;
 }
 

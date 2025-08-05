@@ -25,8 +25,6 @@ export async function POST(req: Request) {
         ?.map((t: any) => t.type.name)
         .join(", ")}.`,
     };
-    console.log(data.name)
-    console.log(pokemon)
     //3 set message
     const messages = [
       {

@@ -1,3 +1,4 @@
+
 // utils/typeColors.ts
 export const typeColors: { [key: string]: string } = {
     electric: "#ca8a04",
@@ -95,3 +96,23 @@ export const  typeGradients: { [key: string]: string } = {
     flying: "from-blue-300 to-indigo-500",
   };
   
+  export const typeAverageColor: { [key: string]: string } = {
+    fire: "bg-orange-600",
+    water: "bg-blue-600",
+    grass: "bg-green-600",
+    electric: "bg-yellow-600",
+    psychic: "bg-fuchsia-600", // closest between pink and purple
+    ice: "bg-cyan-400",         // middle between cyan-300 and blue-500
+    dragon: "bg-purple-800",
+    dark: "bg-gray-800",
+    fairy: "bg-pink-500",
+    normal: "bg-gray-500",
+    rock: "bg-gray-600",
+    bug: "bg-green-500",
+    ghost: "bg-indigo-800",
+    steel: "bg-gray-700",
+    ground: "bg-amber-800",     // Tailwind has no "brown", closest is amber
+    fighting: "bg-red-700",
+    poison: "bg-purple-700",
+    flying: "bg-indigo-400",
+  };

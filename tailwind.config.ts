@@ -1,11 +1,109 @@
 import type { Config } from "tailwindcss";
 
+const gradientClasses = [
+  "from-orange-500",
+  "to-red-700",
+  "from-blue-400",
+  "to-blue-800",
+  "from-green-400",
+  "to-green-700",
+  "from-yellow-400",
+  "to-yellow-700",
+  "from-pink-400",
+  "to-purple-700",
+  "from-cyan-300",
+  "to-blue-500",
+  "from-indigo-600",
+  "to-purple-900",
+  "from-gray-700",
+  "to-black",
+  "from-pink-300",
+  "to-pink-600",
+  "from-gray-400",
+  "to-gray-600",
+  "from-yellow-600",
+  "to-gray-700",
+  "from-lime-400",
+  "to-green-600",
+  "from-purple-600",
+  "to-indigo-900",
+  "from-gray-500",
+  "to-gray-900",
+  "from-yellow-700",
+  "to-brown-800", // ⛔ NOTE: "brown-800" is not in default Tailwind
+  "from-red-600",
+  "to-red-900",
+  "from-purple-500",
+  "to-purple-800",
+  "from-blue-300",
+  "to-indigo-500",
+];
+const UIpokemon = [
+  // Background (***TW)
+  "bg-yellow-600",
+  "bg-orange-400",
+  "bg-cyan-400",
+  "bg-lime-400",
+  "bg-purple-500",
+  "bg-blue-300",
+  "bg-purple-600",
+  "bg-gray-900",
+  "bg-pink-400",
+  "bg-gray-300",
+  "bg-orange-700",
+  "bg-blue-200",
+  "bg-purple-800",
+  "bg-yellow-900",
+  "bg-gray-600",
+  "bg-lime-600",
+  "bg-indigo-900",
+  "bg-gray-400",
+  "bg-orange-600",
+  "bg-blue-600",
+  "bg-green-600",
+  "bg-yellow-600",
+  "bg-fuchsia-600", // closest between pink and purple
+  "bg-cyan-400", // middle between cyan-300 and blue-500
+  "bg-purple-800",
+  "bg-gray-800",
+  "bg-pink-500",
+  "bg-gray-500",
+  "bg-gray-600",
+  "bg-green-500",
+  "bg-indigo-800",
+  "bg-gray-700",
+  "bg-amber-800", // Tailwind has no "brown", closest is amber
+  "bg-red-700",
+  "bg-purple-700",
+  "bg-indigo-400",
+
+  // Text (***COLOR)
+  "text-yellow-600",
+  "text-orange-400",
+  "text-cyan-400",
+  "text-lime-400",
+  "text-purple-500",
+  "text-blue-300",
+  "text-purple-600",
+  "text-gray-900",
+  "text-pink-400",
+  "text-gray-300",
+  "text-orange-700",
+  "text-blue-200",
+  "text-purple-800",
+  "text-yellow-900",
+  "text-gray-600",
+  "text-lime-600",
+  "text-indigo-900",
+  "text-gray-400",
+];
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: ["bg-gradient-to-l", ...gradientClasses, ...UIpokemon],
   theme: {
     extend: {
       backgroundImage: {
@@ -17,4 +115,5 @@ const config: Config = {
   },
   plugins: [],
 };
+
 export default config;

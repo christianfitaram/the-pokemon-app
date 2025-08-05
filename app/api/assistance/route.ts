@@ -1,43 +1,79 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import OpenAI from "openai";
+import { pool } from "@/lib/db/pgvector";
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { pokemon, chatHistory } = body;
-    //1 set message
-    const messages = [
-      {
-        role: "system",
-        content:
-          "You are helping me to identify pokemons based on characteristics\n",
-      },
-      ...chatHistory,
-    ];
-    //2 calling to openAI API
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4",
-        messages,
-        temperature: 0.9,
-      }),
-    });
+export async function POST(req: NextRequest) {
+  const { chatHistory } = await req.json();
+  const userMessage = chatHistory.at(-1)?.content || "Find a Pokémon";
 
-    const aiData = await aiRes.json();
-    const reply =
-      aiData.choices?.[0]?.message?.content ||
-      "Sorry, I couldn't think of a response!";
-    return NextResponse.json({ reply });
-  } catch (err) {
-    console.error("API Chat Error:", err);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
-  }
+  // Step 1: Embed the user query
+  const embeddingResponse = await openai.embeddings.create({
+    input: userMessage,
+    model: "text-embedding-3-small",
+  });
+  const embedding = embeddingResponse.data[0].embedding;
+  const embeddingStr = `[${embedding.join(",")}]`;
+
+  // Step 2: Query the most similar Pokémon from pgvector
+  const { rows: pokemons } = await pool.query(
+    `
+    SELECT name, types, abilities, stats, color, habitat, description, image
+    FROM pokemon_embeddings
+    ORDER BY embedding <-> $1::vector
+    LIMIT 5
+    `,
+    [embeddingStr]
+  );
+
+  // Step 3: Compose the assistant's understanding with RAG context
+  const messages = [
+    {
+      role: "system",
+      content: "You are a helpful assistant specialized in Pokémon knowledge. Use the provided context to answer user questions with accurate, relevant Pokémon matches.",
+    },
+    {
+      role: "function",
+      name: "retrievedPokemonContext",
+      content: pokemons.length
+        ? JSON.stringify(pokemons, null, 2)
+        : JSON.stringify({ message: "No matching Pokémon found." }),
+    },
+    ...chatHistory,
+    {
+      role: "user",
+      content: userMessage,
+    },
+  ];
+
+  // Step 4: Stream GPT-4o-mini response
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages,
+    stream: true,
+  });
+
+  const encoder = new TextEncoder();
+
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of stream) {
+          controller.enqueue(encoder.encode(chunk.choices[0].delta?.content || ""));
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(readableStream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

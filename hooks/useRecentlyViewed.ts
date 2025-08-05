@@ -13,12 +13,13 @@ export const useRecentlyViewed = (limit = 10) => {
     }
   }, []);
 
-  const savePokemon = (name: string, url:string) => {
+  const savePokemon = (name: string) => {
+    const formatURL = getUrl(name);
     const stored: Pokemon[] = JSON.parse(
       localStorage.getItem(STORAGE_KEY) || "[]"
     );
     const updated: Pokemon[] = [
-      {name, url, viewedAt: Date.now() },
+      { name, formatURL, viewedAt: Date.now() },
       ...stored.filter((p) => p.name !== name),
     ].slice(0, limit);
 
@@ -28,3 +29,15 @@ export const useRecentlyViewed = (limit = 10) => {
 
   return { recent, savePokemon };
 };
+
+function getUrl(name: string) {
+  const prePath = "/pokemons/details/";
+  if (typeof window === "undefined") {
+    // Server side: use absolute URL from env variable
+    const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+    return base + prePath + name;
+  }
+  // Client side: relative URL
+  return prePath + name;
+}

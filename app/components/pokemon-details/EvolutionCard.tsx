@@ -1,45 +1,28 @@
 import { EvolutionNode } from "@/types/evolutionTypes";
 import { useState, useEffect } from "react";
-import PokemonCard from "./PokemonCard";
+import PokemonCard from "../PokemonCard";
+import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 
 interface EvolutionCardProps {
   name: string;
 }
 export const EvolutionCard: React.FC<EvolutionCardProps> = ({ name }) => {
-  const [evolutionChain, setEvolutionChain] = useState<string | null>(null);
   const [evolutionChainContent, setEvolutionChainContent] =
     useState<EvolutionNode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!name) return;
-
-    const getEvolutionChain = async () => {
-      try {
-        const res = await fetch(
-          `https://pokeapi.co/api/v2/pokemon-species/${name}`
-        );
-        const data = await res.json();
-        setEvolutionChain(data.evolution_chain.url);
-      } catch (error) {
-        setError((error as Error).message);
+    async function getEvolutionChainContent() {
+      const result = await PokemonApiClient.getPokemonEvolutionChain(name);
+      if (result.success && result.data) {
+        setEvolutionChainContent(result.data);
+      } else {
+        setError(result.error || "Unknown error");
+        console.log(error)
       }
-    };
-    getEvolutionChain();
-  }, [name]);
-
-  useEffect(() => {
-    const getEvolutionChainContent = async () => {
-      try {
-        const res2 = await fetch(evolutionChain || "");
-        const data2 = await res2.json();
-        setEvolutionChainContent(data2.chain);
-      } catch (error) {
-        setError((error as Error).message);
-      }
-    };
+    }
     getEvolutionChainContent();
-  }, [evolutionChain]);
+  }, [name]);
 
   const getAllSpecies = (node: EvolutionNode): string[] => {
     let speciesList = [node.species.name];
@@ -54,7 +37,7 @@ export const EvolutionCard: React.FC<EvolutionCardProps> = ({ name }) => {
   return (
     <div className="flex gap-4 justify-center">
       {evolutionChainContent && (
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col lg:flex-row gap-4">
           <div>
             <h5
               className={`mb-2 text-2xl font-bold tracking-tight  text-white flex flex-row justify-center`}

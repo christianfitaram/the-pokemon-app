@@ -1,20 +1,32 @@
 "use client";
 import { useEffect, useState } from "react";
-import { searchEngine } from "../utils/searchEngine";
+import { searchEngine } from "../../utils/searchEngine";
 import { Pokemon, ToDisplayProps } from "@/types/types";
-import { capitalizeFirstLetter } from "../utils/functions";
+import { capitalizeFirstLetter } from "../../utils/capitalizeFirstLetter";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchRandomPokemon } from "../utils/fetchspecials";
 import { useRouter } from "next/navigation";
-import { useRecentlyViewed } from "../utils/useRecentlyViewed";
+import { useRecentlyViewed } from "../../hooks/useRecentlyViewed";
 import { FaHome } from "react-icons/fa";
+import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
+import { useAllPokemonNames } from "@/hooks/useAllPokemonNames";
 
-const Search: React.FC<ToDisplayProps> = ({
+interface SearchProps extends ToDisplayProps {
+  setisSearchOn: (val: boolean) => void;
+  setIsUserChatting: (val: boolean) => void;
+  setTypeLoading: (val: boolean) => void;
+  fetchPokemonRef: React.MutableRefObject<
+    ((url?: string, isInitial?: boolean) => void) | null
+  >;
+}
+
+const Search: React.FC<SearchProps> = ({
   value,
   onChange,
   setisSearchOn,
   setIsUserChatting,
+  setTypeLoading,
+  fetchPokemonRef,
 }) => {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [typeFilteredPokemons, setTypeFilteredPokemons] = useState<Pokemon[]>(
@@ -23,30 +35,28 @@ const Search: React.FC<ToDisplayProps> = ({
   const [selectedType, setSelectedType] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  // Use local state for allPokemonNames
   const [allPokemonNames, setAllPokemonNames] = useState<Pokemon[]>([]);
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(0);
   const router = useRouter();
+  const { pokemonNames } = useAllPokemonNames();
 
   const getRandomPokemon = async () => {
-    let name = await fetchRandomPokemon();
+    let request = await PokemonApiClient.getRandomPokemon();
+    let name = request.data?.name;
     while (name === null) {
-      name = await fetchRandomPokemon();
+      getRandomPokemon();
     }
-    router.push(`/details/${name}`);
+    router.push(`/details/${name?.toLowerCase()}`);
   };
 
   const { recent } = useRecentlyViewed();
 
   // Fetch all Pokémon names once for name search
   useEffect(() => {
-    const fetchAll = async () => {
-      const res = await fetch("https://pokeapi.co/api/v2/pokemon?limit=1302");
-      const data = await res.json();
-      setAllPokemonNames(data.results);
-    };
-    fetchAll();
-  }, []);
+    setAllPokemonNames(pokemonNames);
+  }, [pokemonNames]);
 
   const handleTypeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedType = event.target.value;
@@ -96,12 +106,18 @@ const Search: React.FC<ToDisplayProps> = ({
       if (selectedTypes.length === 0) {
         setisSearchOn(false);
         setTypeFilteredPokemons([]);
+        setTypeLoading(false);
+        if (fetchPokemonRef.current) {
+          fetchPokemonRef.current(undefined, true);
+        }
         return;
       }
 
       setisSearchOn(true);
+      setTypeLoading(true);
       const results = await searchEngine(selectedTypes);
       setTypeFilteredPokemons(results);
+      setTypeLoading(false);
     }
 
     fetchPokemonsByType();
@@ -134,7 +150,9 @@ const Search: React.FC<ToDisplayProps> = ({
   );
   const goToHome = () => {
     setisSearchOn(false);
-    onChange([]); // reset to default
+    if (fetchPokemonRef.current) {
+      fetchPokemonRef.current(undefined, true);
+    }
   };
   const handleDropdownSelect = (pokemon: Pokemon) => {
     onChange([pokemon]);
@@ -143,10 +161,11 @@ const Search: React.FC<ToDisplayProps> = ({
     setSearchQuery(pokemon.name);
   };
   return (
-    <div className=" background-muted bg-gray-400 flex flex-col items-center w-full my-4 py-4 relative">
+    <div className="background-muted bg-gray-400 flex flex-col items-center w-full my-4 py-4 relative">
       {/* Search by Name */}
       <input
         type="text"
+        name="search"
         placeholder="Search Pokémon by name..."
         value={searchQuery}
         onChange={(e) => {
@@ -221,22 +240,46 @@ const Search: React.FC<ToDisplayProps> = ({
       />
 
       {/* Selected Types */}
-      <div className="flex flex-wrap my-8 gap-2">
-        {selectedTypes.map((type) => (
-          <span
-            key={type}
-            className="bg-blue-600 text-white px-3 py-1 rounded-md flex items-center"
+      <AnimatePresence mode="wait">
+        {selectedTypes.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -20 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -20 }}
+            transition={{ 
+              duration: 0.3, 
+              ease: "easeInOut",
+              height: { duration: 0.4 }
+            }}
+            className="flex flex-wrap justify-center my-8 gap-2 overflow-hidden"
           >
-            {type}
-            <button
-              onClick={() => removeType(type)}
-              className="ml-2 text-white"
-            >
-              ✕
-            </button>
-          </span>
-        ))}
-      </div>
+            {selectedTypes.map((type, index) => (
+              <motion.span
+                key={type}
+                initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                transition={{ 
+                  duration: 0.2, 
+                  delay: index * 0.1,
+                  ease: "easeOut"
+                }}
+                className="bg-blue-600 text-white px-3 py-1 rounded-md flex items-center"
+              >
+                {type}
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => removeType(type)}
+                  className="ml-2 text-white hover:text-red-900/50 transition-colors"
+                >
+                  ✕
+                </motion.button>
+              </motion.span>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="grid grid-cols-2 sm:flex sm:flex-row justify-center gap-4 mt-4">
         <button
           onClick={goToHome}
@@ -305,6 +348,7 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
       </p>
       <select
         onChange={handleTypeSelect}
+        name="type"
         className="px-4 py-2 bg-gray-700 text-white rounded-md flex flex-col"
         defaultValue=""
         value={selectedType}

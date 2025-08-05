@@ -1,66 +1,36 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import {
-  Response,
-  Pokemon,
-  ToDisplayProps,
-} from "@/types/types";
-import { getLastPage } from "@/app/utils/fetchspecials";
-import PokemonCard from "./PokemonCard";
+import { ToDisplayProps } from "@/types/types";
 import PokemonsToDisplay from "./PokemonsTodisplay";
+import { usePokemonList } from "@/hooks/usePokemonList";
 
-const Pokemons: React.FC<ToDisplayProps> = ({
+const Pokemons: React.FC<ToDisplayProps & { typeLoading?: boolean; onFetchPokemon?: (fetchPokemon: (url?: string, isInitial?: boolean) => void) => void }> = ({
   value,
   onChange,
   isSearchOn,
-  setisSearchOn,
+  typeLoading = false,
+  onFetchPokemon,
 }) => {
-  const [pokemonList, setPokemonList] = useState<Pokemon[]>(value);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [nextUrl, setNextUrl] = useState<string | null>(
-    "https://pokeapi.co/api/v2/pokemon/"
-  );
-  const [prevtUrl, setPrevUrl] = useState<string | null>(null);
-  const [lastUrl, setLastUrl] = useState<string>("");
-  const [count, setCount] = useState<number>(1302);
-  const initialFetchDone = useRef<boolean>(false);
+  const {
+    pokemonList,
+    loading,
+    error,
+    nextUrl,
+    prevUrl,
+    fetchPokemon,
+    fetchLastPage,
+  } = usePokemonList({ initialValue: value, onChange, isSearchOn });
 
-  const fetchPokemon = async (url: string) => {
-    try {
-      setLoading(true);
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error("Failed to fetch data");
-      }
-      const data: Response = await res.json();
-      onChange([...data.results]);
-      setPokemonList([...data.results]);
-      setNextUrl(data.next);
-      setPrevUrl(data.previous);
-      setCount(data.count);
-    } catch (error) {
-      setError((error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Expose fetchPokemon to parent
   useEffect(() => {
-    async function getLastUrl() {
-      const url = await getLastPage(count);
-      setLastUrl(url);
+    if (onFetchPokemon) {
+      onFetchPokemon(fetchPokemon);
     }
-    getLastUrl();
-  }, [count]);
+  }, [onFetchPokemon, fetchPokemon]);
 
-  useEffect(() => {
-    if (initialFetchDone.current || isSearchOn) return;
-    initialFetchDone.current = true;
-    fetchPokemon("https://pokeapi.co/api/v2/pokemon/");
-  }, [isSearchOn]);
   if (error) return <div className="text-center text-red-500">{error}</div>;
-  return loading ? (
+
+  return loading || typeLoading ? (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4  max-w-screen-xl gap-8 place-items-stretch">
       {Array(20)
         .fill(null)
@@ -92,12 +62,12 @@ const Pokemons: React.FC<ToDisplayProps> = ({
   ) : (
     <PokemonsToDisplay
       pokemons={isSearchOn ? value : pokemonList}
-      prevtUrl={prevtUrl}
+      prevtUrl={prevUrl}
       nextUrl={nextUrl}
-      lastUrl={lastUrl || ""}
-      loading={loading}
+      loading={loading || typeLoading}
       isSearchOn={isSearchOn}
       fetchPokemon={fetchPokemon}
+      fetchLastPage={fetchLastPage}
     />
   );
 };

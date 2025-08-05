@@ -1,6 +1,6 @@
 export interface Pokemon {
   name: string;
-  url: string;
+  url?: string;
   viewedAt?: number;
 }
 export interface PokemonTypeResponse {
@@ -11,7 +11,7 @@ export interface PokemonTypeResponse {
 }
 export interface Response {
   count: number;
-  next: string;
+  next: string | null;
   previous: string | null;
   results: Pokemon[];
 }
@@ -33,12 +33,14 @@ export interface PokemonSprites {
 }
 
 export interface PokemonDetails {
+  error?: string;
   name: string;
   height: number;
   weight: number;
   base_experience: number;
   types: PokemonType[];
   sprites: PokemonSprites;
+  url?: string;
 }
 
 export interface PokemonDetailsRandom {

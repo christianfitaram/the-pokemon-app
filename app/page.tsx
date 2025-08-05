@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useRef } from "react";
 import Pokemons from "./components/Pokemons";
 import Search from "./components/Search";
-import AssistantChat from "./components/AssistantChat";
+import AssistantChat from "./components/chat/AssistantChat";
 import { Pokemon, ChatMessage } from "@/types/types";
 import { FaRobot } from "react-icons/fa";
 import { AnimatePresence, motion } from "framer-motion";
@@ -15,6 +15,8 @@ const HomePage: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: "assistant", content: "How can I help you?" },
   ]);
+  const [typeLoading, setTypeLoading] = useState(false);
+  const fetchPokemonRef = useRef<((url?: string, isInitial?: boolean) => void) | null>(null);
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen w-full">
@@ -25,6 +27,8 @@ const HomePage: React.FC = () => {
         setisSearchOn={setisSearchOn}
         isUserChating={isUserChating}
         setIsUserChatting={setIsUserChatting}
+        setTypeLoading={setTypeLoading}
+        fetchPokemonRef={fetchPokemonRef}
       />
       <Pokemons
         value={pokemomsToDisplay}
@@ -33,6 +37,10 @@ const HomePage: React.FC = () => {
         setisSearchOn={setisSearchOn}
         isUserChating={isUserChating}
         setIsUserChatting={setIsUserChatting}
+        typeLoading={typeLoading}
+        onFetchPokemon={(fetchPokemon) => {
+          fetchPokemonRef.current = fetchPokemon;
+        }}
       />
       <AnimatePresence>
         {isUserChating && (
@@ -42,7 +50,7 @@ const HomePage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed bottom-14 right-0 left-0 z-50 flex justify-center px-4 sm:justify-end sm:px-0 sm:right-6 sm:left-auto w-full sm:w-1/4"
+            className="fixed bottom-14 z-50 flex justify-center px-4 sm:px-6 w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto sm:mx-0 sm:right-6 sm:left-auto"
           >
             <AssistantChat
               isUserChating={isUserChating}
