@@ -64,7 +64,7 @@ export function middleware(request: NextRequest) {
                    'unknown';
   const now = Date.now();
   const windowMs = 1 * 60 * 1000; // 1 minute
-  const maxRequests = 100; // Max requests per window
+  const maxRequests = 1000; // Max requests per window
 
   const clientData = rateLimitStore.get(clientIP);
   
