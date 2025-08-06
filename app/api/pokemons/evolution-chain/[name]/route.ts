@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PokemonRepository } from "@/lib/repositories/PokemonRepository";
 
 export async function GET(req: NextRequest, { params }: any) {
-  const { name } = params;
+  const { name } = await params;
 
 
   try {
