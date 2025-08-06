@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { PokemonDetails } from "@/types/types";
 import { FaCommentDots, FaHome } from "react-icons/fa";
 import PokemonChat from "@/app/components/chat/PokemonChat";
@@ -77,11 +77,7 @@ export default function PokemonDetailsClient({ number }: Props) {
   }, [pokemon]);
   if (loading) return <PokemonDetailsSkeleton />;
   if (!pokemon)
-    return (
-      <div className="flex flex-col flex-1 items-center justify-center min-h-screen">
-        <p>No data available.</p>
-      </div>
-    );
+    return notFound();
   return (
     <MainLayout>
     <motion.div

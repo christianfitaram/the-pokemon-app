@@ -1,29 +1,35 @@
-"use client";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { MainLayout } from "./components/layout/GeneralLayout";
+import { LinkCard } from "./components/pokemon-details/SeeAlso";
+import { FaHome, FaRandom, FaMailBulk} from "react-icons/fa";
 function NotFound() {
-  const router = useRouter();
   return (
     <MainLayout>
       <div className="flex flex-col flex-1 gap-6 items-center justify-center">
-        <div className="flex flex-col items-center justify-center gap-6">
-        <h1 className="text-2xl">It seems that you got lost!</h1>
-        <p className="text-2xl">Error 404</p>
-        </div>
-        <Image
-          src="../assets/img/psyduck.svg"
-          alt="not-found"
-          width={300} // Width of the image
-          height={300} // Height of the image
-        ></Image>
-        <div>
-          <button
-            onClick={() => router.push("/")}
-            className="text-white  bg-blue-600 font-medium rounded-lg text-sm px-5 py-2.5 inline-flex justify-center w-full text-center"
-          >
-            Back to Home
-          </button>
+        <div className="flex flex-row gap-10">
+          <Image
+            src="../assets/img/psyduck.svg"
+            alt="not-found"
+            width={300} // Width of the image
+            height={300} // Height of the image
+          ></Image>
+          <div className="flex flex-col items-center justify-center gap-6">
+            <div>
+              <h1 className="text-2xl">It seems that you got lost!</h1>
+            </div>
+            <LinkCard url="/">
+              <FaHome className="h-5 w-5" />
+              Go Home
+            </LinkCard>
+            <LinkCard url="/random-pokemon">
+              <FaRandom className="h-5 w-5" />
+              Random Pokemon
+            </LinkCard>
+            <LinkCard url="mailto:christianfitaram@gmail.com">
+              <FaMailBulk className="h-5 w-5" />
+              Report Error
+            </LinkCard>
+          </div>
         </div>
       </div>
     </MainLayout>
