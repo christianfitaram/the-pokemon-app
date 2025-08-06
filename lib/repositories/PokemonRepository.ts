@@ -7,11 +7,10 @@ const BASE_URL = "https://pokeapi.co/api/v2";
 
 // Simple in-memory cache
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 // Request throttling
 let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 100; // Minimum 100ms between requests
+const MIN_REQUEST_INTERVAL = 1000; // 1 second between requests
 
 export class PokemonRepository {
   private static getCachedData(key: string) {

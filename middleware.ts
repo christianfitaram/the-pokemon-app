@@ -29,17 +29,13 @@ export function middleware(request: NextRequest) {
 
   // Skip security checks in development if no secret is set
   if (isDevelopment && !hasSecret) {
-    console.warn('⚠️  Security middleware disabled in development. Set FRONTEND_SECRET to enable.');
     return NextResponse.next();
   }
 
   // 1. Origin check
   const origin = request.headers.get('origin');
-  console.log('🔍 Middleware - Origin:', origin);
-  console.log('🔍 Middleware - Allowed origins:', ALLOWED_ORIGINS);
   
   if (origin && !ALLOWED_ORIGINS.includes(origin)) {
-    console.log('❌ Middleware - Origin not allowed:', origin);
     return new NextResponse(
       JSON.stringify({ error: 'Unauthorized origin', received: origin, allowed: ALLOWED_ORIGINS }),
       { 
@@ -51,11 +47,8 @@ export function middleware(request: NextRequest) {
 
   // 2. Custom header check
   const frontendSecret = request.headers.get('x-frontend-secret');
-  console.log('🔍 Middleware - Frontend secret provided:', !!frontendSecret);
-  console.log('🔍 Middleware - Expected secret configured:', !!FRONTEND_SECRET);
   
   if (frontendSecret !== FRONTEND_SECRET) {
-    console.log('❌ Middleware - Secret mismatch');
     return new NextResponse(
       JSON.stringify({ error: 'Invalid frontend secret', secretProvided: !!frontendSecret, secretConfigured: !!FRONTEND_SECRET }),
       { 
@@ -70,7 +63,7 @@ export function middleware(request: NextRequest) {
                    request.headers.get('x-real-ip') || 
                    'unknown';
   const now = Date.now();
-  const windowMs = 15 * 60 * 1000; // 15 minutes
+  const windowMs = 1 * 60 * 1000; // 1 minute
   const maxRequests = 100; // Max requests per window
 
   const clientData = rateLimitStore.get(clientIP);
