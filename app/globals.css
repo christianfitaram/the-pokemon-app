@@ -47,7 +47,7 @@ body {
   color: rgb(var(--foreground-rgb));
   font-family: "Centra", sans-serif !important;
   overscroll-behavior: none;
-  padding-top: 4rem;
+  padding-top: 3rem;
 }
 
 @layer utilities {
@@ -68,10 +68,7 @@ body {
     text-align: center;
     overscroll-behavior: none;
   }
-  footer {
-    margin-top: 2rem;
-    margin-bottom: 2rem;
-  }
+  
   footer p {
     text-align: center;
     font-weight: 400;

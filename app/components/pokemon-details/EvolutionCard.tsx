@@ -35,9 +35,9 @@ export const EvolutionCard: React.FC<EvolutionCardProps> = ({ name }) => {
   };
 
   return (
-    <div className="flex gap-4 justify-center">
-      {evolutionChainContent && (
-        <div className="flex flex-col lg:flex-row gap-4">
+    <div className="flex gap-4 justify-center items-center w-full">
+      {evolutionChainContent?.evolves_to && (
+        <div className="flex flex-col lg:flex-row gap-4 items-center justify-center w-full">
           <div>
             <h5
               className={`mb-2 text-2xl font-bold tracking-tight  text-white flex flex-row justify-center`}

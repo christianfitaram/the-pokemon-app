@@ -5,10 +5,8 @@ import { Pokemon, ToDisplayProps } from "@/types/types";
 import { capitalizeFirstLetter } from "../../utils/capitalizeFirstLetter";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
 import { useRecentlyViewed } from "../../hooks/useRecentlyViewed";
 import { FaHome } from "react-icons/fa";
-import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 import { useAllPokemonNames } from "@/hooks/useAllPokemonNames";
 
 interface SearchProps extends ToDisplayProps {
@@ -39,17 +37,7 @@ const Search: React.FC<SearchProps> = ({
   const [allPokemonNames, setAllPokemonNames] = useState<Pokemon[]>([]);
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(0);
-  const router = useRouter();
   const { pokemonNames } = useAllPokemonNames();
-
-  const getRandomPokemon = async () => {
-    let request = await PokemonApiClient.getRandomPokemon();
-    let name = request.data?.name;
-    while (name === null) {
-      getRandomPokemon();
-    }
-    router.push(`/details/${name?.toLowerCase()}`);
-  };
 
   const { recent } = useRecentlyViewed();
 
@@ -161,7 +149,7 @@ const Search: React.FC<SearchProps> = ({
     setSearchQuery(pokemon.name);
   };
   return (
-    <div className="background-muted bg-gray-400 flex flex-col items-center w-full my-4 py-4 relative">
+    <div className="background-muted bg-gray-400 flex flex-col items-center w-full mb-4 py-4 relative gap-4">
       {/* Search by Name */}
       <input
         type="text"
@@ -192,7 +180,7 @@ const Search: React.FC<SearchProps> = ({
             handleDropdownSelect(filteredDropdown[highlightedIndex]);
           }
         }}
-        className="w-full search pl-12 max-w-sm px-4 py-2 rounded-3xl border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-gray-800"
+        className="w-full search pl-12 max-w-sm px-4 py-2 rounded-3xl border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
       />
 
       {/* Dropdown menu for name matches */}
@@ -246,53 +234,71 @@ const Search: React.FC<SearchProps> = ({
             initial={{ opacity: 0, height: 0, y: -20 }}
             animate={{ opacity: 1, height: "auto", y: 0 }}
             exit={{ opacity: 0, height: 0, y: -20 }}
-            transition={{ 
-              duration: 0.3, 
+            transition={{
+              duration: 0.3,
               ease: "easeInOut",
-              height: { duration: 0.4 }
+              height: { duration: 0.4 },
             }}
-            className="flex flex-wrap justify-center my-8 gap-2 overflow-hidden"
+            className="flex flex-col items-center my-8 gap-4 overflow-hidden"
           >
-            {selectedTypes.map((type, index) => (
-              <motion.span
-                key={type}
-                initial={{ opacity: 0, scale: 0.8, x: -20 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.8, x: 20 }}
-                transition={{ 
-                  duration: 0.2, 
-                  delay: index * 0.1,
-                  ease: "easeOut"
-                }}
-                className="bg-blue-600 text-white px-3 py-1 rounded-md flex items-center"
-              >
-                {type}
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => removeType(type)}
-                  className="ml-2 text-white hover:text-red-900/50 transition-colors"
+            <div className="flex flex-wrap justify-center gap-2">
+              {selectedTypes.map((type, index) => (
+                <motion.span
+                  key={type}
+                  initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                  transition={{
+                    duration: 0.2,
+                    delay: index * 0.1,
+                    ease: "easeOut",
+                  }}
+                  className="bg-blue-600 text-white px-3 py-1 rounded-md flex items-center"
                 >
-                  ✕
-                </motion.button>
-              </motion.span>
-            ))}
+                  {type}
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => removeType(type)}
+                    className="ml-2 text-white hover:text-red-900/50 transition-colors"
+                  >
+                    ✕
+                  </motion.button>
+                </motion.span>
+              ))}
+            </div>
+            
+            {/* Share/Bookmark Link */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex items-center gap-2"
+            >
+              <Link
+                href={`/pokemon-type/${selectedTypes.join('/')}`}
+                className="text-blue-400 hover:text-blue-300 text-sm underline flex items-center gap-1"
+              >
+                <span>🔗</span>
+                Share this type combination
+              </Link>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="grid grid-cols-2 sm:flex sm:flex-row justify-center gap-4 mt-4">
+      <div className="grid grid-cols-2 sm:flex sm:flex-row justify-center gap-4">
         <button
           onClick={goToHome}
           className="border flex flex-row items-center justify-center gap-2 p-2 text-white rounded-lg hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
         >
           <FaHome className="h-5 w-5" /> Go Home
         </button>
-        <button
+        <Link
+          href="/random-pokemon"
           className="border p-2 rounded-lg text-white hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
-          onClick={getRandomPokemon}
         >
           Random Pokémon
-        </button>
+        </Link>
         <button
           className="border p-2 rounded-lg text-white hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
           onClick={toListRecentlyViewed}
@@ -342,7 +348,7 @@ const SelectMenu: React.FC<SelectMenuProps> = ({
   ];
 
   return (
-    <div className="flex flex-row items-center gap-4 mt-4">
+    <div className="flex flex-row items-center gap-4">
       <p className="font-[family-name:var(--font-geist-mono)] text-white flex flex-col">
         Search by type:
       </p>

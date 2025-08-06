@@ -37,8 +37,8 @@ export default function RootLayout({
           </h1>
         </nav>
         {children}
-        <footer>
-          <p>Made with ❤️ by <a href="https://enricfitaram.dev" target="_blank" rel="noopener noreferrer">Christian Fita</a> in Barcelona</p>
+        <footer className="py-8">
+          <p>Made with ❤️ by <a href="https://enricfitaram.dev" target="_blank" rel="noopener noreferrer" className="underline">Christian Fita</a> in Barcelona</p>
           <p>There is no CopyRight. Do as you please.</p>
         </footer>
       </body>
