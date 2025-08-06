@@ -7,10 +7,7 @@ export async function GET(req: NextRequest, { params }: any) {
   try {
     const response = await PokemonRepository.gePokemonsLastPage(n);
     let pokemonDetails = response;
-    console.log(response);
     if (response.results.length === 0 && response.previous) {
-      console.log("response");
-
       pokemonDetails = await PokemonRepository.gePokemonsCustomPage(
         response.previous
       );

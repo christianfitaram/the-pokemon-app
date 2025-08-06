@@ -5,7 +5,6 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { pokemon, chatHistory } = body;
-    console.log(`https://pokeapi.co/api/v2/pokemon/${pokemon}`);
     //1 fetch data
     const pokeRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemon}`);
     if (!pokeRes.ok) {

@@ -15,6 +15,5 @@ export const searchEngine = async (data: string[]): Promise<Pokemon[]> => {
   );
 
   // Flatten the array of arrays into a single array of Pokémon objects
-  console.log(pokemonResults.flat())
   return pokemonResults.flat();
 };
