@@ -1,16 +1,12 @@
 import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
 import { useEffect, useState } from "react";
-import { Pokemon, PokemonDetails } from "@/types/types";
+import { PokemonCardProps, PokemonDetails} from "@/types/interfaces";
 import Link from "next/link";
 import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 import formatDateTime from "../../utils/formatDateTime";
 import getGradientColor from "../../utils/getUIcolors";
 import Image from "next/image";
 
-interface PokemonCardProps {
-  pokemonOverview: Pokemon;
-  isActive?: boolean
-}
 
 const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview, isActive = false }) => {
   const [randomPokemons, setRandomPokemons] = useState<PokemonDetails | null>(
@@ -20,6 +16,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview, isActive = f
   const [gradientClass, setGradientClass] = useState<string | null>(null);
 
   //Lets fetch the pokemon data to display in card
+
   useEffect(() => {
     async function fetchPokemon() {
       const result = await PokemonApiClient.getPokemonByName(
@@ -44,10 +41,9 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview, isActive = f
   return (
     <Link
       href={`/details/${randomPokemons?.name}`}
-      className={`${isActive && ("scale-105 !bg-gray-600 mx-2")} relative flex flex-col items-center justify-center text-center 
+      className={`${isActive ? ("border-2 border-gray-300 "):("border-gray-700 ")} relative flex flex-col items-center justify-center text-center 
         w-full h-full p-6  rounded-tr-3xl rounded-bl-3xl shadow 
-       background-muted  border-gray-700  hover:bg-gray-600 
-        background-muted overflow-hidden transition-transform duration-300 ease-in-out hover:scale-105`}
+       hover:bg-gray-600 -hidden transition-transform duration-300 ease-in-out hover:scale-105 background-muted`}
     >
       {/* Left Half Gradient Background with Dim Overlay */}
       <div

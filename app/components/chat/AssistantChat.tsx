@@ -1,5 +1,5 @@
 "use client";
-import { AssistantChatProps } from "@/types/types";
+import { AssistantChatProps } from "@/types/interfaces";
 import UnifiedChat from "./UnifiedChat";
 
 const AssistantChat: React.FC<AssistantChatProps> = ({

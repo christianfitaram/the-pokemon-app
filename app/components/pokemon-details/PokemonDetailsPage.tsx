@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
-import { PokemonDetails } from "@/types/types";
+import { PokemonDetails } from "@/types/interfaces";
 import { FaCommentDots, FaHome } from "react-icons/fa";
 import PokemonChat from "@/app/components/chat/PokemonChat";
 import { EvolutionCard } from "@/app/components/pokemon-details/EvolutionCard";
@@ -11,15 +11,13 @@ import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 import { getAvergareColor, getColorTheme } from "@/utils/getUIcolors";
 import { PokemonTypeList } from "../PokemonTypeCard";
 import { uiThemePokemon } from "@/types/uiThemePokemonType";
-import { PokemonDetailsSkeleton, SubContainer } from "./LayoutElements";
+import { PokemonDetailsSkeleton} from "@/app/components/layout/Skeletons";
+import { SubContainer } from "@/app/components/layout/GeneralLayout";
 import Image from "next/image";
 import { SeeAlso } from "./SeeAlso";
-import { MainLayout } from "../layout/GeneralLayout";
-interface Props {
-  number: string;
-}
+import { MainLayout } from "@/app/components/layout/GeneralLayout";
 
-export default function PokemonDetailsClient({ number }: Props) {
+export default function PokemonDetailsClient({ number }: { number: string}) {
   const [pokemon, setPokemon] = useState<PokemonDetails | null>(null);
   const [showPokemonChat, setShowPokemonChat] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -62,10 +60,12 @@ export default function PokemonDetailsClient({ number }: Props) {
 
     fetchPokemonDetails();
   }, [number]);
-  //Lets assing the gradient for the background and UI elements
+
+  //Lets passing the gradient for the background and UI elements
+
   useEffect(() => {
     if (pokemon) {
-      const getUItheme = (randomPokemons: PokemonDetails) => {
+      const getUItheme   = (randomPokemons: PokemonDetails) => {
         setUItheme(getColorTheme(randomPokemons));
       };
       const getGradientColorUI = (randomPokemons: PokemonDetails) => {

@@ -1,68 +1,74 @@
-import { EvolutionNode } from "@/types/evolutionTypes";
-import { useState, useEffect } from "react";
+import {EvolutionNode} from "@/types/evolutionTypes";
+import {useState, useEffect} from "react";
 import PokemonCard from "../PokemonCard";
-import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
+import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
+import {PokemonCardWrapper, Title} from "@/app/components/layout/GeneralLayout";
+import {EvolutionSkeleton} from "@/app/components/layout/Skeletons";
+import getAllSpecies from "@/utils/getAllSpecies";
 
-interface EvolutionCardProps {
-  name: string;
-}
-export const EvolutionCard: React.FC<EvolutionCardProps> = ({ name }) => {
-  const [evolutionChainContent, setEvolutionChainContent] =
-    useState<EvolutionNode | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [originalPokemon, setOriginalPokemon] = useState<string | null>(null);
-  useEffect(() => {
-    async function getEvolutionChainContent() {
-      setOriginalPokemon(name);
-      const result = await PokemonApiClient.getPokemonEvolutionChain(name);
-      if (result.success && result.data) {
-        setEvolutionChainContent(result.data);
-      } else {
-        setError(result.error || "Unknown error");
-        console.log(error);
-      }
+export const EvolutionCard = ({name}: { name: string}  ) => {
+    const [evolutionChainContent, setEvolutionChainContent] =
+        useState<EvolutionNode | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [originalPokemon, setOriginalPokemon] = useState<string | null>(null);
+    const [numOfEvolutions, setNumOfEvolutions] = useState<number | null>(null);
+
+    useEffect(() => {
+        async function getEvolutionChainContent() {
+            setOriginalPokemon(name);
+            const result = await PokemonApiClient.getPokemonEvolutionChain(name);
+            if (result.success && result.data) {
+                setEvolutionChainContent(result.data);
+            } else {
+                setError(result.error || "Unknown error");
+                console.log(error);
+            }
+        }
+
+        getEvolutionChainContent();
+    }, [name]);
+
+    useEffect(() => {
+        async function NumOfEvolutions() {
+            if (evolutionChainContent != null) {
+                setNumOfEvolutions(getAllSpecies(evolutionChainContent).length)
+                console.log(numOfEvolutions)
+            }
+        }
+
+        NumOfEvolutions();
+    }, [evolutionChainContent]);
+
+    if (error) {
+        return null;
     }
-    getEvolutionChainContent();
-  }, [name]);
 
-  const getAllSpecies = (node: EvolutionNode): string[] => {
-    let speciesList = [node.species.name];
-
-    node.evolves_to.forEach((child) => {
-      speciesList = speciesList.concat(getAllSpecies(child));
-    });
-
-    return speciesList;
-  };
-
-  return (
-    <div className="flex gap-4 justify-center items-center w-full">
-      {evolutionChainContent?.evolves_to && (
-        <div className="flex flex-col lg:flex-row gap-4 items-center justify-center w-full">
-          <div>
-            <h5
-              className={`mb-2 text-2xl font-bold tracking-tight  text-white flex flex-row justify-center`}
-            >
-              Evolution chain:
-            </h5>
-          </div>
-          {getAllSpecies(evolutionChainContent).map((name, index) => {
-            const pokemon = {
-              name: name,
-              url: `https://pokeapi.co/api/v2/pokemon/${name}`,
-            };
-            return originalPokemon == name ? (
-              <PokemonCard
-                pokemonOverview={pokemon}
-                isActive={true}
-                key={index}
-              />
-            ) : (
-              <PokemonCard pokemonOverview={pokemon} key={index} />
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+    return (
+        evolutionChainContent?.evolves_to ? (
+            <div
+                className={`${(numOfEvolutions != null && numOfEvolutions > 4) ? ('2xl:flex-row items-center') : ('lg:flex-row')} flex flex-col  gap-4`}>
+                <Title>
+                    {(numOfEvolutions != null && numOfEvolutions > 3) ? ('Possible Evolutions: ') : ('Evolution chain:')}
+                </Title>
+                {getAllSpecies(evolutionChainContent).map((name, index) => {
+                    const pokemon = {
+                        name: name,
+                        url: `https://pokeapi.co/api/v2/pokemon/${name}`,
+                    };
+                    return originalPokemon == name ? (
+                        <PokemonCardWrapper numOfEvolutions={numOfEvolutions} key={index}>
+                            <PokemonCard
+                                pokemonOverview={pokemon}
+                                isActive={true}
+                            />
+                        </PokemonCardWrapper>
+                    ) : (
+                        <PokemonCardWrapper numOfEvolutions={numOfEvolutions} key={index}>
+                            <PokemonCard pokemonOverview={pokemon}/>
+                        </PokemonCardWrapper>
+                    );
+                })}
+            </div>
+        ) : <EvolutionSkeleton/>
+    );
 };

@@ -1,5 +1,5 @@
 import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
-import { Pokemon } from "@/types/types";
+import { Pokemon } from "@/types/interfaces";
 
 export const searchEngine = async (data: string[]): Promise<Pokemon[]> => {
 

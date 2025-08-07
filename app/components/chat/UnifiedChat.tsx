@@ -1,27 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { capitalizeFirstLetter } from "../../../utils/capitalizeFirstLetter";
-import { PokemonDetails, ChatMessage } from "@/types/types";
+import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
+import {ChatMessage, UnifiedChatProps} from "@/types/interfaces";
 import { FaUser, FaRobot, FaPlusCircle, FaLongArrowAltLeft } from "react-icons/fa";
 import TypingIndicator from "./TypingIndicator";
 import { marked } from "marked";
 import { motion } from "framer-motion";
-import { chatApi } from "../../../utils/apiClient";
-
-export type ChatType = "pokemon" | "assistant";
-
-interface UnifiedChatProps {
-  chatType: ChatType;
-  pokemon?: PokemonDetails;
-  onClose: () => void;
-  onBack?: () => void;
-  // For assistant chat
-  messages?: ChatMessage[];
-  setMessages?: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
-  // For pokemon chat
-  initialMessage?: string;
-  showBackButton?: boolean;
-  showAnimation?: boolean;
-}
+import {chatApi} from "@/lib/api_clients/pokemonApiClient";
 
 export default function UnifiedChat({
   chatType,
@@ -65,11 +49,11 @@ export default function UnifiedChat({
     setLoading(true);
 
     try {
-      const res = chatType === "pokemon" 
+      const res = chatType === "pokemon"
         ? await chatApi.roleplay(input, pokemon!.name, newMessages)
         : await chatApi.assistant(newMessages);
 
-      if (!res.body) throw new Error("No response body");
+      if (!res.body) console.log("No response body");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -297,4 +281,4 @@ export default function UnifiedChat({
       {content}
     </div>
   );
-} 
+}

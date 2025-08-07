@@ -1,4 +1,4 @@
-import { PokemonDetails } from "@/types/types";
+import { PokemonDetails } from "@/types/interfaces";
 import { uiThemePokemon } from "@/types/uiThemePokemonType";
 import { typeGradients, typeColors, typeAverageColor } from "@/utils/typeColors";
 

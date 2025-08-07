@@ -1,4 +1,4 @@
-import { PokemonDetails } from "@/types/types";
+import { PokemonDetails } from "@/types/interfaces";
 import UnifiedChat from "./UnifiedChat";
 
 export default function PokemonChat({

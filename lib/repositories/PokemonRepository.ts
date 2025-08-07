@@ -1,6 +1,6 @@
 // app/lib/repositories/pokemonRepository.ts
 
-import { Pokemon, PokemonDetails, Response } from "@/types/types";
+import { Pokemon, PokemonDetails, Response } from "@/types/interfaces";
 import { FetchError } from "../error_handling/FetchError";
 
 const BASE_URL = "https://pokeapi.co/api/v2";
@@ -121,7 +121,6 @@ export class PokemonRepository {
     const evoData = await this.fetchWithErrorHandling(
       speciesData.evolution_chain.url
     );
-    console.log(evoData.chain.species.url);
     return evoData.chain.species.url;
   }
 

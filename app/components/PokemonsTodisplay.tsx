@@ -1,18 +1,9 @@
-import { Pokemon } from "@/types/types";
+import { PokemonsToDisplayProps } from "@/types/interfaces";
 import PokemonCard from "./PokemonCard";
-interface PokemonsToDisplayProps {
-  pokemons: Pokemon[];
-  prevtUrl: string | null;
-  nextUrl: string | null;
-  loading: boolean;
-  isSearchOn: boolean;
-  fetchPokemon: (url: string | undefined, isInitial: boolean) => void;
-  fetchLastPage: () => void;
-}
 
 const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
   pokemons,
-  prevtUrl,
+  prevUrl,
   nextUrl,
   loading,
   isSearchOn,
@@ -61,7 +52,7 @@ const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
           <div className="flex gap-4">
             <button
               type="button"
-              disabled={!prevtUrl}
+              disabled={!prevUrl}
               onClick={() => fetchPokemon(undefined, true)}
               className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:bg-blue-900"
             >
@@ -70,8 +61,8 @@ const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
 
             <button
               type="button"
-              disabled={!prevtUrl}
-              onClick={() => fetchPokemon(prevtUrl || "", false)}
+              disabled={!prevUrl}
+              onClick={() => fetchPokemon(prevUrl || "", false)}
               className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:bg-blue-900"
             >
               &#10094;

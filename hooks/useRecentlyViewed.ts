@@ -1,4 +1,4 @@
-import { Pokemon } from "@/types/types";
+import { Pokemon } from "@/types/interfaces";
 import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "recentlyViewed";

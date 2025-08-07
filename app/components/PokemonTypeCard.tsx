@@ -1,16 +1,8 @@
-import { PokemonDetails, PokemonType } from "@/types/types";
-import { typeColors } from "../../utils/typeColors";
-import { capitalizeFirstLetter } from "../../utils/capitalizeFirstLetter";
+import { PokemonDetails, PokemonType } from "@/types/interfaces";
+import { typeColors } from "@/utils/typeColors";
+import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
 
-type PokemonTypeCardProps = {
-  type: PokemonType;
-};
-
-type PokemonTypeListProps = {
-  pokemon: PokemonDetails;
-};
-
-export function PokemonTypeCard({ type }: PokemonTypeCardProps) {
+export function PokemonTypeCard({ type }: {type: PokemonType}) {
   const typeName = type.type.name;
   return (
     <div
@@ -38,7 +30,7 @@ export function PokemonTypeCard({ type }: PokemonTypeCardProps) {
   );
 }
 
-export function PokemonTypeList({ pokemon }: PokemonTypeListProps) {
+export function PokemonTypeList({ pokemon }: { pokemon: PokemonDetails}) {
   return (
     <>
       <div className="flex flex-row text-gray-200">

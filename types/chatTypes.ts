@@ -81,7 +81,8 @@ export interface NamedAPIResource {
     stats: Stat[];
     types: Type[];
   
-    past_abilities: any[]; //define if needed
-    past_types: any[];     //define if needed
-  }
-  
+    past_abilities: any[];
+    past_types: any[];
+}
+
+export type ChatType = "pokemon" | "assistant";

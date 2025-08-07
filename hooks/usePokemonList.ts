@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Response, Pokemon, ToDisplayProps } from "@/types/types";
+import { Response, Pokemon, ToDisplayProps } from "@/types/interfaces";
 import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 
 interface UsePokemonListProps {
@@ -53,7 +53,7 @@ export const usePokemonList = ({ initialValue, onChange, isSearchOn }: UsePokemo
       setLoading(false);
       return;
     }
-    await fetchAndHandle(() => PokemonApiClient.getPokemonsCustomtPage(url));
+    await fetchAndHandle(() => PokemonApiClient.getPokemonsCustomPage(url));
   };
 
   const fetchLastPage = async () => {
