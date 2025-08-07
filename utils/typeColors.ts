@@ -31,7 +31,7 @@ export const typeColors: { [key: string]: string } = {
   
     dark: "#111827",
     darkTW: "bg-gray-900",
-    darkCOLOR: "text-gray-900",
+    darkCOLOR: "text-white bg-gray-800 w-fit self-center px-4 py-2 rounded-full",
   
     fairy: "#f472b6",
     fairyTW: "bg-pink-400",

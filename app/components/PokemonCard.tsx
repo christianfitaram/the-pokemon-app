@@ -9,9 +9,10 @@ import Image from "next/image";
 
 interface PokemonCardProps {
   pokemonOverview: Pokemon;
+  isActive?: boolean
 }
 
-const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview }) => {
+const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview, isActive = false }) => {
   const [randomPokemons, setRandomPokemons] = useState<PokemonDetails | null>(
     null
   );
@@ -43,10 +44,10 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemonOverview }) => {
   return (
     <Link
       href={`/details/${randomPokemons?.name}`}
-      className="relative flex flex-col items-center justify-center text-center 
+      className={`${isActive && ("scale-105 !bg-gray-600 mx-2")} relative flex flex-col items-center justify-center text-center 
         w-full h-full p-6  rounded-tr-3xl rounded-bl-3xl shadow 
        background-muted  border-gray-700  hover:bg-gray-600 
-        background-muted overflow-hidden transition-transform duration-300 ease-in-out hover:scale-105"
+        background-muted overflow-hidden transition-transform duration-300 ease-in-out hover:scale-105`}
     >
       {/* Left Half Gradient Background with Dim Overlay */}
       <div

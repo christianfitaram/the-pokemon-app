@@ -10,15 +10,16 @@ export const EvolutionCard: React.FC<EvolutionCardProps> = ({ name }) => {
   const [evolutionChainContent, setEvolutionChainContent] =
     useState<EvolutionNode | null>(null);
   const [error, setError] = useState<string | null>(null);
-
+  const [originalPokemon, setOriginalPokemon] = useState<string | null>(null);
   useEffect(() => {
     async function getEvolutionChainContent() {
+      setOriginalPokemon(name);
       const result = await PokemonApiClient.getPokemonEvolutionChain(name);
       if (result.success && result.data) {
         setEvolutionChainContent(result.data);
       } else {
         setError(result.error || "Unknown error");
-        console.log(error)
+        console.log(error);
       }
     }
     getEvolutionChainContent();
@@ -50,7 +51,15 @@ export const EvolutionCard: React.FC<EvolutionCardProps> = ({ name }) => {
               name: name,
               url: `https://pokeapi.co/api/v2/pokemon/${name}`,
             };
-            return <PokemonCard pokemonOverview={pokemon} key={index} />;
+            return originalPokemon == name ? (
+              <PokemonCard
+                pokemonOverview={pokemon}
+                isActive={true}
+                key={index}
+              />
+            ) : (
+              <PokemonCard pokemonOverview={pokemon} key={index} />
+            );
           })}
         </div>
       )}

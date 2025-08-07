@@ -78,6 +78,9 @@ const UIpokemon = [
   "bg-indigo-400",
 
   // Text (***COLOR)
+  "text-stone-950",
+  "text-[#111827]",
+  "text-black",
   "text-yellow-600",
   "text-orange-400",
   "text-cyan-400",
