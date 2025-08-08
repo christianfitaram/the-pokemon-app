@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Response, Pokemon, ToDisplayProps } from "@/types/interfaces";
+import { PokemonListResponse, Pokemon } from "@/types/interfaces";
 import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 
 interface UsePokemonListProps {
@@ -20,7 +20,7 @@ export const usePokemonList = ({ initialValue, onChange, isSearchOn }: UsePokemo
   const initialFetchDone = useRef<boolean>(false);
 
   // Handler for API response
-  const handlePokemonApiResponse = (data: Response) => {
+  const handlePokemonApiResponse = (data: PokemonListResponse) => {
     onChange([...data.results]);
     setPokemonList([...data.results]);
     setNextUrl(data.next);
@@ -34,7 +34,7 @@ export const usePokemonList = ({ initialValue, onChange, isSearchOn }: UsePokemo
       setLoading(true);
       const res = await fetcher();
       const data = res?.data;
-      if (!data) throw new Error("No data returned from API");
+      if (!data) console.log("No data returned from API");
       handlePokemonApiResponse(data);
     } catch (error) {
       setError((error as Error).message);

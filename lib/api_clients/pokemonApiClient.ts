@@ -1,6 +1,6 @@
 // lib/api_clients/pokemonApiClient.ts
 import { EvolutionNode } from "@/types/evolutionTypes";
-import { ApiResponse, Pokemon, PokemonDetails, Response, ApiClientOptions } from "@/types/interfaces";
+import { ApiResponse, Pokemon, PokemonDetails, PokemonListResponse, ApiClientOptions } from "@/types/interfaces";
 
 const FRONTEND_SECRET = process.env.NEXT_PUBLIC_FRONTEND_SECRET || 'your-secret-key-change-this';
 
@@ -84,7 +84,7 @@ export class PokemonApiClient {
     }
   }
 
-  static async getPokemonsFirstPage(): Promise<ApiResponse<Response>> {
+  static async getPokemonsFirstPage(): Promise<ApiResponse<PokemonListResponse>> {
     try {
       const data = await ApiClient.get('/pokemons/first-page');
       return { success: true, data };
@@ -93,7 +93,7 @@ export class PokemonApiClient {
     }
   }
 
-  static async getPokemonsLastPage(n: string): Promise<ApiResponse<Response>> {
+  static async getPokemonsLastPage(n: string): Promise<ApiResponse<PokemonListResponse>> {
     try {
       const data = await ApiClient.get(`/pokemons/last-page/${n}`);
       return { success: true, data };
@@ -102,7 +102,7 @@ export class PokemonApiClient {
     }
   }
 
-  static async getPokemonsCustomPage(urlParameter: string): Promise<ApiResponse<Response>> {
+  static async getPokemonsCustomPage(urlParameter: string): Promise<ApiResponse<PokemonListResponse>> {
     try {
       const data = await ApiClient.post('/pokemons/custom-page', { url: urlParameter });
       return { success: true, data };

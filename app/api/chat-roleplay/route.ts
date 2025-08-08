@@ -1,10 +1,9 @@
 import {NextRequest} from "next/server";
 import { pool } from "@/lib/db/pgvector";
-import { PokemonDetails } from "@/types/interfaces";
 import OpenAI from "openai";
 
 
-export async function getPokemonByNormalizedName(pokemonName: string) {
+async function getPokemonByNormalizedName(pokemonName: string) {
     const normalizedInputName = pokemonName.toLowerCase().replace(/\s+/g, "");
 
     const { rows } = await pool.query(

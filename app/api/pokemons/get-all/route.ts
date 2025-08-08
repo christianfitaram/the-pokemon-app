@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const pokemons = await PokemonRepository.getAllPokemons();
     // Return only the results array
-    return NextResponse.json(pokemons.results);
+    return NextResponse.json(pokemons);
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
