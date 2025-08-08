@@ -75,7 +75,7 @@ export class PokemonApiClient {
     }
   }
 
-  static async getAllPokemons(): Promise<ApiResponse<Pokemon[]>> {
+  static async getAllPokemons(): Promise<ApiResponse<PokemonListResponse>> {
     try {
       const data = await ApiClient.get('/pokemons/get-all');
       return { success: true, data };
