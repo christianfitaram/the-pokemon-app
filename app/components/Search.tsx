@@ -36,7 +36,7 @@ const Search: React.FC<SearchProps> = ({
     useEffect(() => {
         setAllPokemonNames(pokemonNames);
     }, [pokemonNames]);
-
+    console.log(allPokemonNames);
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (

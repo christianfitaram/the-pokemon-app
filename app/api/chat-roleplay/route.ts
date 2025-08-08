@@ -129,7 +129,6 @@ export async function POST(req: NextRequest) {
             evolution_chain: evolutionChainSentence,
             evolution_tree: evolutionTreeSentence,
         };
-        console.log(summary);
         // Add function response message to messages array
         const newMessages = [
             ...messages,
