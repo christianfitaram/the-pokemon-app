@@ -1,5 +1,5 @@
 "use client";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {searchEngine} from "@/utils/searchEngine";
 import {Pokemon, SearchProps, SelectMenuProps, ToDisplayProps} from "@/types/interfaces";
 import {capitalizeFirstLetter} from "@/utils/capitalizeFirstLetter";
@@ -29,13 +29,29 @@ const Search: React.FC<SearchProps> = ({
     const [showDropdown, setShowDropdown] = useState<boolean>(false);
     const [highlightedIndex, setHighlightedIndex] = useState<number>(0);
     const {pokemonNames} = useAllPokemonNames();
-
+    const dropdownRef = useRef<HTMLDivElement>(null);
     const {recent} = useRecentlyViewed();
 
     // Fetch all Pokémon names once for name search
     useEffect(() => {
         setAllPokemonNames(pokemonNames);
     }, [pokemonNames]);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target as Node)
+            ) {
+                setShowDropdown(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     const handleTypeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const selectedType = event.target.value;
@@ -141,6 +157,7 @@ const Search: React.FC<SearchProps> = ({
     };
     return (
         <div className="background-muted bg-gray-400 flex flex-col items-center w-full mb-4 py-4 relative gap-4">
+            <div ref={dropdownRef} className="relative w-full max-w-sm">
             {/* Search by Name */}
             <input
                 type="text"
@@ -155,7 +172,13 @@ const Search: React.FC<SearchProps> = ({
                     setHighlightedIndex(0);
                 }}
                 onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                        setShowDropdown(false);
+                        return;
+                    }
+
                     if (!showDropdown || filteredDropdown.length === 0) return;
+
                     if (e.key === "ArrowDown") {
                         e.preventDefault();
                         setHighlightedIndex((prev) =>
@@ -171,6 +194,7 @@ const Search: React.FC<SearchProps> = ({
                         handleDropdownSelect(filteredDropdown[highlightedIndex]);
                     }
                 }}
+
                 className="w-full search pl-12 max-w-sm px-4 py-2 rounded-3xl border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
             />
 
@@ -182,7 +206,7 @@ const Search: React.FC<SearchProps> = ({
                         animate={{opacity: 1, y: 0}}
                         exit={{opacity: 0, y: -10}}
                         transition={{duration: 0.2}}
-                        className="absolute top-[92px] max-w-sm w-full bg-white rounded-md shadow-md z-10 border max-h-64 overflow-y-auto overscroll-contain"
+                        className="absolute top-[52px] max-w-sm w-full bg-white rounded-md shadow-md z-10 border max-h-64 overflow-y-auto overscroll-contain"
                     >
                         {filteredDropdown.slice(0, 15).map((pokemon, index) => (
                             <Link
@@ -211,7 +235,7 @@ const Search: React.FC<SearchProps> = ({
                     </motion.ul>
                 )}
             </AnimatePresence>
-
+            </div>
             {/* Type Filter */}
             <SelectMenu
                 handleTypeSelect={handleTypeSelect}

@@ -6,14 +6,7 @@ export interface Pokemon {
     viewedAt?: number;
 }
 
-export interface PokemonTypeResponse {
-    pokemon: {
-        pokemon: Pokemon;
-        slot: number;
-    }[];
-}
-
-export interface Response {
+export interface PokemonListResponse {
     count: number;
     next: string | null;
     previous: string | null;
@@ -40,6 +33,7 @@ export interface PokemonSprites {
 export interface PokemonDetails {
     error?: string;
     name: string;
+    id: number;
     height: number;
     weight: number;
     base_experience: number;

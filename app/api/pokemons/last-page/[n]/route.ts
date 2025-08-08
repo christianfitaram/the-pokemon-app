@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PokemonRepository } from "@/lib/repositories/PokemonRepository";
+import {PokemonListResponse} from "@/types/interfaces";
 
 export async function GET(req: NextRequest, { params }: any) {
-  const { n } = params;
+  const { n } = await params;
 
   try {
-    const response = await PokemonRepository.gePokemonsLastPage(n);
+    const response : PokemonListResponse = await PokemonRepository.gePokemonsLastPage(n);
     let pokemonDetails = response;
     if (response.results.length === 0 && response.previous) {
       pokemonDetails = await PokemonRepository.gePokemonsCustomPage(

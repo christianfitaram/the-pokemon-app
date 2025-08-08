@@ -16,6 +16,7 @@ import { SubContainer } from "@/app/components/layout/GeneralLayout";
 import Image from "next/image";
 import { SeeAlso } from "./SeeAlso";
 import { MainLayout } from "@/app/components/layout/GeneralLayout";
+import {getURLimg} from "@/utils/getURLimg";
 
 export default function PokemonDetailsClient({ number }: { number: string}) {
   const [pokemon, setPokemon] = useState<PokemonDetails | null>(null);
@@ -25,7 +26,7 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
   const router = useRouter();
   const [uiTheme, setUItheme] = useState<uiThemePokemon>();
   const [gradientClass, setGradientClass] = useState<string | null>(null);
-
+    const [imgURL, setImgURL] = useState<string>("/sprites/question-mark.png");
   const { savePokemon } = useRecentlyViewed();
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
       };
       getUItheme(pokemon);
       getGradientColorUI(pokemon);
+        setImgURL(getURLimg(pokemon))
     }
   }, [pokemon]);
   if (loading) return <PokemonDetailsSkeleton />;
@@ -93,11 +95,7 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
         <div className="flex flex-col lg:flex-row items-center justify-center gap-8 max-w-5xl w-full">
           <div className="flex flex-col">
             <Image
-              src={
-                pokemon?.sprites.other["official-artwork"].front_default ||
-                pokemon?.sprites.front_default ||
-                "/assets/img/question-mark.png"
-              }
+              src={imgURL}
               alt={pokemon?.name || "Pokemon Image"}
               width={475}
               height={475}

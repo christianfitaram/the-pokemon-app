@@ -9,6 +9,7 @@ const nextConfig = {
         pathname: '/PokeAPI/sprites/**',
       },
     ],
+      minimumCacheTTL: 60, // optional: cache longer
   },
 };
 export default nextConfig;
