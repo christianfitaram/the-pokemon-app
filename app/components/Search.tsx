@@ -145,6 +145,7 @@ const Search: React.FC<SearchProps> = ({
     );
     const goToHome = () => {
         setIsSearchOn(false);
+        setSelectedTypes([]);
         if (fetchPokemonRef.current) {
             fetchPokemonRef.current(undefined, true);
         }
