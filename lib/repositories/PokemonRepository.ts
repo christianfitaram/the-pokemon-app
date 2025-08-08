@@ -93,7 +93,7 @@ export class PokemonRepository {
     }
 
     // 🔽 Existing Methods (unchanged)
-    static async getAllPokemons(): Promise<Pokemon[]> {
+    static async getAllPokemons(): Promise<PokemonListResponse> {
         return await this.fetchWithErrorHandling(`${BASE_URL}/pokemon?limit=1302`);
     }
 

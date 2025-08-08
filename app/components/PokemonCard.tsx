@@ -62,6 +62,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = fa
 
                 <Image
                     src={imgURL}
+                    priority
                     alt={randomPokemons?.name || "Pokemon Image"}
                     width={160}
                     height={160}
