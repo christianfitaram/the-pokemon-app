@@ -36,7 +36,7 @@ const Search: React.FC<SearchProps> = ({
     useEffect(() => {
         setAllPokemonNames(pokemonNames);
     }, [pokemonNames]);
-    console.log(allPokemonNames);
+    // console.log(allPokemonNames);
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (
@@ -163,6 +163,7 @@ const Search: React.FC<SearchProps> = ({
                 type="text"
                 name="search"
                 placeholder="Search Pokémon by name..."
+                autoComplete={"off"}
                 value={searchQuery}
                 onChange={(e) => {
                     setSearchQuery(e.target.value);
