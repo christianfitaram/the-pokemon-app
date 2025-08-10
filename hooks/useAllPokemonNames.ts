@@ -7,52 +7,51 @@ export function useAllPokemonNames() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const stored = localStorage.getItem("allPokemonNames");
-        // console.log("Initial localStorage check:", stored ? "Data found" : "No data");
+        const fetchAndSetPokemonNames = async () => {
+            try {
+                const response = await PokemonApiClient.getAllPokemons();
+                if (response.success && response.data) {
+                    const pokemonData = response.data.results || [];
+                    setPokemonNames(pokemonData);
+                    
+                    // Try to store in localStorage, but don't rely on it
+                    try {
+                        localStorage.setItem("allPokemonNames", JSON.stringify(pokemonData));
+                    } catch (e) {
+                        // Silently handle localStorage errors
+                        console.debug("localStorage not available");
+                    }
+                } else {
+                    setPokemonNames([]);
+                }
+            } catch (error) {
+                console.error("Failed to fetch Pokemon names:", error);
+                setPokemonNames([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        let stored: string | null = null;
+        try {
+            stored = localStorage.getItem("allPokemonNames");
+        } catch (e) {
+            // Silently handle localStorage errors
+            console.debug("localStorage not available");
+        }
 
         if (stored) {
             try {
                 const parsed = JSON.parse(stored);
-               /* console.log("Parsed data structure:", {
-                    type: typeof parsed,
-                    isArray: Array.isArray(parsed)
-                });
-                */
-                // Handle both formats: array and object with results
                 const names = Array.isArray(parsed) ? parsed : parsed.results || [];
-                // console.log("Extracted names length:", names.length);
                 setPokemonNames(names);
                 setLoading(false);
             } catch (error) {
-                // console.error("Parse error:", error);
-                localStorage.removeItem("allPokemonNames");
-                setPokemonNames([]);
-                setLoading(false);
+                // If parsing fails, fetch from API
+                fetchAndSetPokemonNames();
             }
         } else {
-            // console.log("Fetching from API...");
-            PokemonApiClient.getAllPokemons()
-                .then((response: ApiResponse<PokemonListResponse>) => {
-                    if (response.success && response.data) {
-                        const pokemonData = response.data.results || [];
-                        try {
-                            // Store just the array in development
-                            localStorage.setItem("allPokemonNames", JSON.stringify(pokemonData));
-                            // console.log("Successfully stored in localStorage");
-                        } catch (e) {
-                            console.error("Storage error:", e);
-                        }
-                        setPokemonNames(pokemonData);
-                    } else {
-                        // console.error("Invalid response format:", response);
-                        setPokemonNames([]);
-                    }
-                })
-                .catch((error) => {
-                    // console.error("API fetch error:", error);
-                    setPokemonNames([]);
-                })
-                .finally(() => setLoading(false));
+            fetchAndSetPokemonNames();
         }
     }, []);
 
