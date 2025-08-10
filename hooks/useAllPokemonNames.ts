@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Pokemon, PokemonListResponse, ApiResponse } from "@/types/interfaces";
-import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
+import {useEffect, useState} from "react";
+import {Pokemon, PokemonListResponse, ApiResponse} from "@/types/interfaces";
+import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
 
 export function useAllPokemonNames() {
     const [pokemonNames, setPokemonNames] = useState<Pokemon[]>([]);
@@ -13,7 +13,7 @@ export function useAllPokemonNames() {
                 if (response.success && response.data) {
                     const pokemonData = response.data.results || [];
                     setPokemonNames(pokemonData);
-                    
+
                     // Try to store in localStorage, but don't rely on it
                     try {
                         localStorage.setItem("allPokemonNames", JSON.stringify(pokemonData));
@@ -35,6 +35,9 @@ export function useAllPokemonNames() {
         let stored: string | null = null;
         try {
             stored = localStorage.getItem("allPokemonNames");
+            if (stored?.length == 0) {
+                stored = null
+            }
         } catch (e) {
             // Silently handle localStorage errors
             console.debug("localStorage not available");
@@ -55,5 +58,5 @@ export function useAllPokemonNames() {
         }
     }, []);
 
-    return { pokemonNames, loading };
+    return {pokemonNames, loading};
 }
