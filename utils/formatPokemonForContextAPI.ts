@@ -30,7 +30,12 @@ Image URL: ${image}
     if (evolution_chain?.length) {
         output += `\nEvolution Chain: ${evolution_chain.join(" → ")}`;
     }
-    output += `\nEvolution Tree:\n${renderEvolutionTree(evolution_tree)}`;
+
+    // Only add evolution tree if it exists
+    if (evolution_tree) {
+        output += `\nEvolution Tree:\n${renderEvolutionTree(evolution_tree)}`;
+    }
+
     return output;
 }
 
