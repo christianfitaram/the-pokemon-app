@@ -11,7 +11,7 @@ export function useAllPokemonNames() {
             try {
                 const response = await PokemonApiClient.getAllPokemons();
                 if (response.success && response.data) {
-                    const pokemonData = response.data.results || [];
+                    const pokemonData = response.data || [];
                     setPokemonNames(pokemonData);
 
                     // Try to store in localStorage, but don't rely on it

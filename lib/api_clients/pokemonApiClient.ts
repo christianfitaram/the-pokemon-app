@@ -75,14 +75,11 @@ export class PokemonApiClient {
     }
   }
 
-  static async getAllPokemons(): Promise<ApiResponse<PokemonListResponse>> {
+  static async getAllPokemons(): Promise<ApiResponse<Pokemon[]>> {
     try {
-      console.log('Fetching all pokemons...'); // Debug log
       const data = await ApiClient.get('/pokemons/get-all');
-      console.log('Received pokemon data:', data); // Debug log
-      return { success: true, data };
+      return  data ;
     } catch (error) {
-      console.error('Error in getAllPokemons:', error); // Debug log
       return { success: false, error: (error as Error).message };
     }
   }
