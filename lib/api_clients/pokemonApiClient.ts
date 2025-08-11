@@ -2,21 +2,15 @@
 import { EvolutionNode } from "@/types/evolutionTypes";
 import { ApiResponse, Pokemon, PokemonDetails, PokemonListResponse, ApiClientOptions } from "@/types/interfaces";
 
-const FRONTEND_SECRET = process.env.NEXT_PUBLIC_FRONTEND_SECRET || 'your-secret-key-change-this';
-
 export class ApiClient {
-  private static getHeaders(customHeaders?: Record<string, string>) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...customHeaders,
-    };
-
-    if (FRONTEND_SECRET && FRONTEND_SECRET !== 'your-secret-key-change-this') {
-      headers['x-frontend-secret'] = FRONTEND_SECRET;
+    private static getHeaders(customHeaders?: Record<string, string>) {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'x-frontend-secret': process.env.NEXT_PUBLIC_FRONTEND_SECRET || '',
+            ...customHeaders,
+        };
+        return headers;
     }
-
-    return headers;
-  }
 
   private static async request<T = any>(
     endpoint: string,
