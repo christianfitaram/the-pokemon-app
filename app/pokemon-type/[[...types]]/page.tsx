@@ -1,9 +1,9 @@
 "use client";
-import { MainLayout } from "@/app/components/layout/GeneralLayout";
+import { MainLayout } from "@/components/layout/GeneralLayout";
 import { use, useEffect, useState } from "react";
 import { Pokemon } from "@/types/interfaces";
 import { searchEngine } from "@/utils/searchEngine";
-import PokemonCard from "@/app/components/PokemonCard";
+import PokemonCard from "@/components/PokemonCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaHome } from "react-icons/fa";
 import Link from "next/link";

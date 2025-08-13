@@ -1,9 +1,9 @@
 "use client";
 
 import {useState, useRef} from "react";
-import Pokemons from "./components/Pokemons";
-import Search from "./components/Search";
-import AssistantChat from "./components/chat/AssistantChat";
+import Pokemons from "@/components/Pokemons";
+import Search from "@/components/Search";
+import AssistantChat from "@/components/chat/AssistantChat";
 import {Pokemon, ChatMessage} from "@/types/interfaces";
 import {FaRobot} from "react-icons/fa";
 import {AnimatePresence, motion} from "framer-motion";

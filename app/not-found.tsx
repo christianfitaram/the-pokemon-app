@@ -1,6 +1,6 @@
 import Image from "next/image";
-import { MainLayout } from "./components/layout/GeneralLayout";
-import { LinkCard } from "./components/pokemon-details/SeeAlso";
+import { MainLayout } from "@/components/layout/GeneralLayout";
+import { LinkCard } from "@/components/pokemon-details/SeeAlso";
 import { FaHome, FaRandom, FaMailBulk} from "react-icons/fa";
 function NotFound() {
   return (

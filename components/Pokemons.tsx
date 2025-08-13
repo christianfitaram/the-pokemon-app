@@ -3,7 +3,7 @@ import {useEffect} from "react";
 import {ToDisplayProps} from "@/types/interfaces";
 import PokemonsToDisplay from "./PokemonsTodisplay";
 import {usePokemonList} from "@/hooks/usePokemonList";
-import {SkeletonPokemonList} from "@/app/components/layout/Skeletons";
+import {SkeletonPokemonList} from "@/components/layout/Skeletons";
 
 const Pokemons: React.FC<ToDisplayProps & {
     typeLoading?: boolean;

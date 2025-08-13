@@ -1,4 +1,4 @@
-import PokemonDetailsPage from "@/app/components/pokemon-details/PokemonDetailsPage";
+import PokemonDetailsPage from "@/components/pokemon-details/PokemonDetailsPage";
 import type { Metadata } from "next";
 import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";

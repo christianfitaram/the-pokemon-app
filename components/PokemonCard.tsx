@@ -3,8 +3,8 @@ import {useEffect, useState} from "react";
 import {PokemonCardProps, PokemonDetails} from "@/types/interfaces";
 import Link from "next/link";
 import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
-import formatDateTime from "../../utils/formatDateTime";
-import getGradientColor from "../../utils/getUIcolors";
+import formatDateTime from "../utils/formatDateTime";
+import getGradientColor from "../utils/getUIcolors";
 import Image from "next/image";
 import {getURLimg} from "@/utils/getURLimg";
 

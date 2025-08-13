@@ -3,19 +3,19 @@ import { useEffect, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { PokemonDetails } from "@/types/interfaces";
 import { FaCommentDots, FaHome } from "react-icons/fa";
-import PokemonChat from "@/app/components/chat/PokemonChat";
-import { EvolutionCard } from "@/app/components/pokemon-details/EvolutionCard";
+import PokemonChat from "@/components/chat/PokemonChat";
+import { EvolutionCard } from "@/components/pokemon-details/EvolutionCard";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { motion } from "framer-motion";
 import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 import { getAvergareColor, getColorTheme } from "@/utils/getUIcolors";
 import { PokemonTypeList } from "../PokemonTypeCard";
 import { uiThemePokemon } from "@/types/uiThemePokemonType";
-import { PokemonDetailsSkeleton} from "@/app/components/layout/Skeletons";
-import { SubContainer } from "@/app/components/layout/GeneralLayout";
+import { PokemonDetailsSkeleton} from "@/components/layout/Skeletons";
+import { SubContainer } from "@/components/layout/GeneralLayout";
 import Image from "next/image";
 import { SeeAlso } from "./SeeAlso";
-import { MainLayout } from "@/app/components/layout/GeneralLayout";
+import { MainLayout } from "@/components/layout/GeneralLayout";
 import {getURLimg} from "@/utils/getURLimg";
 
 export default function PokemonDetailsClient({ number }: { number: string}) {

@@ -2,8 +2,8 @@ import {EvolutionNode} from "@/types/evolutionTypes";
 import {useState, useEffect} from "react";
 import PokemonCard from "../PokemonCard";
 import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
-import {PokemonCardWrapper, Title} from "@/app/components/layout/GeneralLayout";
-import {EvolutionSkeleton} from "@/app/components/layout/Skeletons";
+import {PokemonCardWrapper, Title} from "@/components/layout/GeneralLayout";
+import {EvolutionSkeleton} from "@/components/layout/Skeletons";
 import getAllSpecies from "@/utils/getAllSpecies";
 
 export const EvolutionCard = ({name}: { name: string}  ) => {
