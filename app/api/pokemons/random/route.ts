@@ -12,7 +12,7 @@ export async function GET() {
         return NextResponse.json(pokemon);
       }
     } catch (error) {
-      // Optionally log the error
+      console.error("Error fetching random pokemon:", error);
     }
     attempt++;
   }
