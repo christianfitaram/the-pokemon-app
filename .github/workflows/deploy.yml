@@ -23,9 +23,17 @@ jobs:
     - name: Deploy to VM via PM2
       run: |
         ssh ${{ secrets.GCP_VM_USERNAME }}@${{ secrets.GCP_VM_HOST }} << 'EOF'
-          cd ${{ secrets.GCP_VM_PATH }}
-          git pull origin main
-          npm install
-          npm run build
-          pm2 restart the-pokemon-app
+        # Load NVM and use the correct Node version
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        
+        # Use the full path to PM2
+        PM2_PATH="$HOME/.nvm/versions/node/v22.18.0/bin/pm2"
+        
+        cd ${{ secrets.GCP_VM_PATH }}
+        git pull origin main
+        npm install
+        npm run build
+        $PM2_PATH restart the-pokemon-app
         EOF
+      
