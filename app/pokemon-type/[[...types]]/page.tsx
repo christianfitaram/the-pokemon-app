@@ -2,7 +2,7 @@
 import { MainLayout } from "@/components/layout/GeneralLayout";
 import { use, useEffect, useState } from "react";
 import { Pokemon } from "@/types/interfaces";
-import { searchEngine } from "@/utils/searchEngine";
+import { searchEngine } from "@/lib/searchEngine";
 import PokemonCard from "@/components/PokemonCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaHome } from "react-icons/fa";

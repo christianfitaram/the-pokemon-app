@@ -1,15 +1,16 @@
 "use client";
 
-import {useState, useRef} from "react";
+import {useState, useRef, useEffect} from "react";
 import Pokemons from "@/components/Pokemons";
-import Search from "@/components/Search";
+import Search from "@/components/search/Search";
 import AssistantChat from "@/components/chat/AssistantChat";
 import {Pokemon, ChatMessage} from "@/types/interfaces";
 import {FaRobot} from "react-icons/fa";
 import {AnimatePresence, motion} from "framer-motion";
 
+
 const HomePage: React.FC = () => {
-    const [pokemomsToDisplay, setPokemomsToDisplay] = useState<Pokemon[]>([]);
+    const [pokemonsToDisplay, setPokemonsToDisplay] = useState<Pokemon[]>([]);
     const [isSearchOn, setIsSearchOn] = useState<boolean>(false);
     const [isUserChatting, setIsUserChatting] = useState<boolean>(false);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -17,12 +18,11 @@ const HomePage: React.FC = () => {
     ]);
     const [typeLoading, setTypeLoading] = useState(false);
     const fetchPokemonRef = useRef<((url?: string, isInitial?: boolean) => void) | null>(null);
-
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full">
             <Search
-                value={pokemomsToDisplay}
-                onChange={setPokemomsToDisplay}
+                value={pokemonsToDisplay}
+                onChange={setPokemonsToDisplay}
                 isSearchOn={isSearchOn}
                 setIsSearchOn={setIsSearchOn}
                 isUserChatting={isUserChatting}
@@ -30,9 +30,10 @@ const HomePage: React.FC = () => {
                 setTypeLoading={setTypeLoading}
                 fetchPokemonRef={fetchPokemonRef}
             />
+
             <Pokemons
-                value={pokemomsToDisplay}
-                onChange={setPokemomsToDisplay}
+                value={pokemonsToDisplay}
+                onChange={setPokemonsToDisplay}
                 isSearchOn={isSearchOn}
                 setIsSearchOn={setIsSearchOn}
                 isUserChatting={isUserChatting}
@@ -69,6 +70,7 @@ const HomePage: React.FC = () => {
                     <FaRobot className="h-8 w-8"/>
                 </button>
             )}
+
         </div>
     );
 };

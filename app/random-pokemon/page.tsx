@@ -38,7 +38,7 @@ export default function Page() {
         
         // Success! Navigate to the pokemon
         console.log("Navigating to:", name);
-        router.push(`/details/${name.toLowerCase()}`);
+        router.push(`/pokemon/${name.toLowerCase()}`);
       } catch (error) {
         console.error("Error fetching random pokemon:", error);
       }

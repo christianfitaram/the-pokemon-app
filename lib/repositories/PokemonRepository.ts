@@ -98,7 +98,7 @@ export class PokemonRepository {
     }
 
     static async gePokemonsFirstPage(): Promise<Pokemon[]> {
-        return await this.fetchWithErrorHandling(`${BASE_URL}/pokemon`);
+        return await this.fetchWithErrorHandling(`${BASE_URL}/pokemon?limit=24`);
     }
 
     static async gePokemonsLastPage(n: string): Promise<PokemonListResponse> {

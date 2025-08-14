@@ -9,7 +9,7 @@ import Image from "next/image";
 import {getURLimg} from "@/utils/getURLimg";
 
 
-const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = false, isList = false}) => {
+const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = false}) => {
     const [randomPokemons, setRandomPokemons] = useState<PokemonDetails | null>(
         null
     );
@@ -44,8 +44,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = fa
     return (
         <Link
             href={`/pokemon/${randomPokemons?.name}`}
-            className={`${isActive ? ("border-2 border-gray-300 ") : ("border-gray-700 ")} 
-            relative flex flex-col items-center justify-center text-center 
+            className={`${isActive ? ("border-2 border-gray-300 ") : ("border-gray-700 ")} relative flex flex-col items-center justify-center text-center 
         w-full h-full p-6  rounded-tr-3xl rounded-bl-3xl shadow 
        hover:bg-gray-600 -hidden transition-transform duration-300 ease-in-out hover:scale-105 background-muted`}
         >
@@ -59,7 +58,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = fa
             {/* Semi-Transparent Dark Overlay to Further Dim */}
             <div className="absolute left-0 top-0 w-full h-full bg-black opacity-5 rounded-l-lg"></div>
 
-            <div className={`${isList ? ("flex-row gap-20") : ("flex-col")} flex  items-center justify-center h-full relative z-10`}>
+            <div className="flex flex-col items-center justify-center h-full relative z-10">
 
                 <Image
                     src={imgURL}
@@ -69,27 +68,26 @@ const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = fa
                     height={160}
                     className="w-40 h-40 object-contain mx-auto"
                 />
-                <div className="flex flex-col items-center justify-center h-full relative z-10">
-                    <h5 className="mb-2 text-lg font-bold tracking-tight text-gray-100 font-[family-name:var(--font-geist-mono)]">
-                        {randomPokemons?.name.toUpperCase()}
-                    </h5>
-                    <div className="flex flex-col gap-4">
-                        <div className="flex gap-2 flex-wrap justify-center">
-                            {randomPokemons?.types?.map((type, typeIndex) => (
-                                <span
-                                    key={typeIndex}
-                                    className="bg-gray-700 text-white text-xs font-medium px-2 py-1 rounded-md"
-                                >
+
+                <h5 className="mb-2 text-lg font-bold tracking-tight text-gray-100 font-[family-name:var(--font-geist-mono)]">
+                    {randomPokemons?.name.toUpperCase()}
+                </h5>
+                <div className="flex flex-col gap-4">
+                    <div className="flex gap-2 flex-wrap justify-center">
+                        {randomPokemons?.types?.map((type, typeIndex) => (
+                            <span
+                                key={typeIndex}
+                                className="bg-gray-700 text-white text-xs font-medium px-2 py-1 rounded-md"
+                            >
                 {capitalizeFirstLetter(type.type.name)}
               </span>
-                            ))}
-                        </div>
-                        {pokemonOverview.viewedAt && (
-                            <div className="bg-gray-900 text-white text-xs font-medium px-2 py-1 rounded-md">
-                                Viewed {formatDateTime(pokemonOverview.viewedAt)}
-                            </div>
-                        )}
+                        ))}
                     </div>
+                    {pokemonOverview.viewedAt && (
+                        <div className="bg-gray-900 text-white text-xs font-medium px-2 py-1 rounded-md">
+                            Viewed {formatDateTime(pokemonOverview.viewedAt)}
+                        </div>
+                    )}
                 </div>
             </div>
         </Link>

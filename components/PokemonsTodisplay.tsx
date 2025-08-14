@@ -1,95 +1,87 @@
+import { useEffect } from "react";
 import { PokemonsToDisplayProps } from "@/types/interfaces";
 import PokemonCard from "./PokemonCard";
+import { PaginationBar } from "@/components/layout/Pagination";
+import { usePagination } from "@/hooks/usePagination";
+import { formatURLpagination } from "@/utils/formatURLpagination";
+import { Grid2x2, List } from "lucide-react";
+import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 
-const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
-  pokemons,
-  prevUrl,
-  nextUrl,
-  loading,
-  isSearchOn,
-  fetchPokemon,
-  fetchLastPage
-}) => {
-  return (
-    <div className="z-0 flex flex-col items-center justify-center w-full max-w-screen-xl space-y-6 px-4 sm:px-8">
-      {/* Pokémon Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full place-items-stretch">
-        {pokemons.map((pokemon, key) =>
-          loading ? (
-            <div
-              key={`skeleton-${key}`}
-              className="background-muted rounded-lg p-6 shadow-md animate-pulse h-fit flex flex-col justify-between gap-4"
+export const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
+                                                                        pokemons,
+                                                                        prevUrl,
+                                                                        nextUrl,
+                                                                        loading,
+                                                                        isSearchOn,
+                                                                        fetchPokemon,
+                                                                        fetchLastPage,
+                                                                        currentPage,
+                                                                        setCurrentPage,
+                                                                        pending = false, // NEW
+                                                                    }) => {
+    const { totalPages } = usePagination(24);
+    const { preferences, updatePreferences } = useDisplayPreferences(currentPage);
+
+    const handlePageChange = async (page: number) => {
+        try {
+            if (page >= 0 && page < totalPages) {
+                setCurrentPage(page);
+                updatePreferences({ currentPage: page });
+                const url = formatURLpagination(page, 24);
+                await fetchPokemon(url, false);
+            }
+        } catch (error) {
+            console.error('Error changing page:', error);
+        }
+    };
+
+    const handleToggleList = () => {
+        if (pending) return; // avoid rapid flips during fetch
+        updatePreferences({ isListView: !preferences.isListView });
+    };
+
+    return (
+        <div className="relative z-0 w-full max-w-screen-xl px-4 sm:px-8 space-y-6">
+            <button
+                onClick={handleToggleList}
+                disabled={pending}
+                className={`bg-blue-950 hover:bg-blue-900 text-white px-4 py-2 rounded-full shadow-lg self-end flex flex-row items-center gap-2`}
             >
-              <div className="flex flex-row items-center justify-center">
-                <div className="h-6 bg-gray-700 rounded w-8"></div>
-              </div>
-              <div className="flex flex-row items-center justify-center">
-                <div className="h-24 bg-gray-700 rounded w-36"></div>
-              </div>
-              <div className="flex flex-row items-center justify-center">
-                <div className="h-6 bg-gray-700 rounded w-1/2"></div>
-              </div>
-              <div className="flex flex-row items-center justify-center gap-4">
-                <div className="h-4 bg-gray-700 rounded w-6"></div>
-                <div className="h-4 bg-gray-700 rounded w-6"></div>
-              </div>
+                {preferences.isListView
+                    ? <>See grid <Grid2x2 /></>
+                    : <>See list <List /></>
+                }
+            </button>
+
+            <div className={`w-full ${preferences.isListView
+                ? 'flex flex-col gap-4'
+                : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8'
+            }`}>
+                {pokemons.map((pokemon) => (
+                    <PokemonCard
+                        pokemonOverview={pokemon}
+                        key={pokemon.name}           // 🔑 stable key
+                        isList={preferences.isListView}
+                    />
+                ))}
             </div>
-          ) : (
-            // Render the actual PokemonCard component
-            <PokemonCard pokemonOverview={pokemon} key={key} />
-          )
-        )}
-      </div>
-      {/* Display message if loading is done but no Pokémon were found */}
-      {!loading && pokemons.length === 0 && (
-        <p className="text-center text-muted-foreground mt-4">
-          No Pokémon found.
-        </p>
-      )}
-      {/* Pagination Section (Separate from Grid) */}
-      {!loading && !isSearchOn && (
-        <div className="w-full flex justify-center mt-4">
-          <div className="flex gap-4">
-            <button
-              type="button"
-              disabled={!prevUrl}
-              onClick={() => fetchPokemon(undefined, true)}
-              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:bg-blue-900"
-            >
-              &#10094; Start
-            </button>
 
-            <button
-              type="button"
-              disabled={!prevUrl}
-              onClick={() => fetchPokemon(prevUrl || "", false)}
-              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:bg-blue-900"
-            >
-              &#10094;
-            </button>
+            {!loading && !isSearchOn && (
+                <div className="w-full flex justify-center mt-4">
+                    <PaginationBar
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        setCurrentPage={handlePageChange}
+                    />
+                </div>
+            )}
 
-            <button
-              type="button"
-              disabled={!nextUrl}
-              onClick={() => fetchPokemon(nextUrl || "", false)}
-              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:bg-blue-900"
-            >
-              &#10095;
-            </button>
-
-            <button
-              type="button"
-              disabled={!nextUrl}
-              onClick={() => fetchLastPage()}
-              className="px-5 py-2.5 text-white bg-blue-700 rounded-lg hover:bg-blue-800  disabled:bg-blue-900"
-            >
-              End &#10095;
-            </button>
-          </div>
+            {/* Soft overlay while pending – prevents layout jump */}
+            {pending && (
+                <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
-
-export default PokemonsToDisplay;

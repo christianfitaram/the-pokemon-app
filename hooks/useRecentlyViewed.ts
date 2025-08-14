@@ -31,7 +31,7 @@ export const useRecentlyViewed = (limit = 10) => {
 };
 
 function getUrl(name: string) {
-  const prePath = "/pokemons/details/";
+  const prePath = "/pokemons/pokemon/";
   if (typeof window === "undefined") {
     // Server side: use absolute URL from env variable
     const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";

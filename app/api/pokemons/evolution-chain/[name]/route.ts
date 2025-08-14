@@ -1,4 +1,4 @@
-// app/api/pokemons/details/[name]/route.ts
+// app/api/pokemons/pokemon/[name]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { PokemonRepository } from "@/lib/repositories/PokemonRepository";
 

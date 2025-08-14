@@ -40,7 +40,7 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
         const res = await PokemonApiClient.getPokemonByName(number);
 
         if (!res.success) {
-          console.log(res.error || "Failed to fetch Pokémon details");
+          console.log(res.error || "Failed to fetch Pokémon pokemon");
         }
 
         if (res.data) {
@@ -85,6 +85,7 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
+        data-testid="pokemon-details"
         className="flex flex-col items-center space-y-6 gradient min-h-screen gap-10"
         style={
           {

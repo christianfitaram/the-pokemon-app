@@ -49,6 +49,10 @@ export interface PokemonsToDisplayProps {
     isSearchOn: boolean;
     fetchPokemon: (url: string | undefined, isInitial: boolean) => void;
     fetchLastPage: () => void;
+    currentPage: number;
+    setCurrentPage: (page: number) => void;
+    pending: boolean;
+
 }
 
 export interface SearchProps extends ToDisplayProps {
@@ -97,7 +101,8 @@ export interface EvolutionCardProps {
 
 export interface PokemonCardProps {
     pokemonOverview: Pokemon;
-    isActive?: boolean
+    isActive?: boolean;
+    isList?: boolean;
 }
 
 export interface ChildrenAsProp {
@@ -131,4 +136,61 @@ export interface UnifiedChatProps {
     showBackButton?: boolean;
     showAnimation?: boolean;
 }
+
+export interface UsePaginationReturn {
+    totalPages: number;
+    isLoading: boolean;
+    error: Error | null;
+}
+
+export interface ActionButtonsProps {
+    goToHome: () => void;
+    toListRecentlyViewed: () => void;
+    showAssistantChat: () => void;
+}
+
+export interface SearchInputProps {
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+    showDropdown: boolean;
+    setShowDropdown: (show: boolean) => void;
+    highlightedIndex: number;
+    setHighlightedIndex: (index: number) => void;
+    noMatchesMessage: string | null;
+    setNoMatchesMessage: (message: string | null) => void;
+    filteredDropdown: Pokemon[];
+    handleDropdownSelect: (pokemon: Pokemon) => void;
+}
+
+export interface ActionButtonsProps {
+    goToHome: () => void;
+    toListRecentlyViewed: () => void;
+    showAssistantChat: () => void;
+}
+
+export interface SelectedTypesProps {
+    selectedTypes: string[];
+    removeType: (type: string) => void;
+}
+
+export interface TypeApiResponse {
+    pokemon: Array<{
+        pokemon: Pokemon;
+        slot: number;
+    }>;
+}
+
+export interface DisplayPreferences {
+    isListView: boolean;
+    currentPage: number;
+}
+
+export interface UsePokemonListProps {
+    initialValue: Pokemon[];
+    onChange: (pokemons: Pokemon[]) => void;
+    isSearchOn: boolean;
+    initialPage?: number; // Add this optional parameter
+
+}
+
 

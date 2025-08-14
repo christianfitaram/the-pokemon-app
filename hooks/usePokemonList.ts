@@ -1,81 +1,104 @@
-import { useEffect, useState, useRef } from "react";
-import { PokemonListResponse, Pokemon } from "@/types/interfaces";
-import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
+import {useEffect, useState, useRef, useCallback} from "react";
+import {PokemonListResponse, Pokemon, UsePokemonListProps} from "@/types/interfaces";
+import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
+import {getTotalNumPokemon} from "@/lib/getTotalNumPokemon";
 
-interface UsePokemonListProps {
-  initialValue: Pokemon[];
-  onChange: (pokemons: Pokemon[]) => void;
-  isSearchOn: boolean;
-}
 
-export const usePokemonList = ({ initialValue, onChange, isSearchOn }: UsePokemonListProps) => {
-  const [pokemonList, setPokemonList] = useState<Pokemon[]>(initialValue);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [nextUrl, setNextUrl] = useState<string | null>(
-    "https://pokeapi.co/api/v2/pokemon/"
-  );
-  const [prevUrl, setPrevUrl] = useState<string | null>(null);
-  const [count, setCount] = useState<number>(1302);
-  const initialFetchDone = useRef<boolean>(false);
+export const usePokemonList = ({
+                                   initialValue,
+                                   onChange,
+                                   isSearchOn,
+                                   initialPage = 0
+                               }: UsePokemonListProps) => {
+    const [pokemonList, setPokemonList] = useState<Pokemon[]>(initialValue);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+    const [nextUrl, setNextUrl] = useState<string | null>(
+        "https://pokeapi.co/api/v2/pokemon/"
+    );
+    const [prevUrl, setPrevUrl] = useState<string | null>(null);
+    const [count, setCount] = useState<number>(1302);
+    const initialFetchDone = useRef<boolean>(false);
 
-  // Handler for API response
-  const handlePokemonApiResponse = (data: PokemonListResponse) => {
-    onChange([...data.results]);
-    setPokemonList([...data.results]);
-    setNextUrl(data.next);
-    setPrevUrl(data.previous);
-    setCount(data.count);
-  };
+    // Handler for API response
+    const handlePokemonApiResponse = (data: PokemonListResponse) => {
+        onChange([...data.results]);
+        setPokemonList([...data.results]);
+        setNextUrl(data.next);
+        setPrevUrl(data.previous);
+        setCount(data.count);
+    };
 
-  // Unified fetch logic
-  const fetchAndHandle = async (fetcher: () => Promise<any>) => {
-    try {
-      setLoading(true);
-      const res = await fetcher();
-      const data = res?.data;
-      if (!data) console.log("No data returned from API");
-      handlePokemonApiResponse(data);
-    } catch (error) {
-      setError((error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchLastPage = useCallback(async () => {
+        try {
+            setLoading(true);
+            const totalPokemon = await getTotalNumPokemon();
+            const offset = Math.floor(totalPokemon / 24) * 24;
+            const url = `https://pokeapi.co/api/v2/pokemon?offset=${offset}&limit=24`;
 
-  const fetchPokemon = async (url?: string, isInitial: boolean = false) => {
-    if (isInitial) {
-      await fetchAndHandle(() => PokemonApiClient.getPokemonsFirstPage());
-      return;
-    }
-    if (!url) {
-      setError("No URL provided for fetching data");
-      setLoading(false);
-      return;
-    }
-    await fetchAndHandle(() => PokemonApiClient.getPokemonsCustomPage(url));
-  };
+            const response = await fetch(url);
+            const data: PokemonListResponse = await response.json();
 
-  const fetchLastPage = async () => {
-    await fetchAndHandle(() => PokemonApiClient.getPokemonsLastPage(count.toString()));
-  };
+            setPokemonList(data.results);
+            setNextUrl(data.next);
+            setPrevUrl(data.previous);
 
-  useEffect(() => {
-    if (initialFetchDone.current || isSearchOn) return;
-    initialFetchDone.current = true;
-    fetchPokemon(undefined, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSearchOn]);
+            if (!isSearchOn) {
+                onChange(data.results);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch Pokemon');
+        } finally {
+            setLoading(false);
+        }
+    }, [onChange, isSearchOn]);
 
-  return {
-    pokemonList,
-    loading,
-    error,
-    nextUrl,
-    prevUrl,
-    count,
-    fetchPokemon,
-    fetchLastPage,
-    setPokemonList, // in case you want to update it directly
-  };
+
+    // Unified fetch logic
+    const fetchAndHandle = async (fetcher: () => Promise<any>) => {
+        try {
+            setLoading(true);
+            const res = await fetcher();
+            const data = res?.data;
+            if (!data) console.log("No data returned from API");
+            handlePokemonApiResponse(data);
+        } catch (error) {
+            setError((error as Error).message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchPokemon = async (url?: string, isInitial: boolean = false) => {
+        if (isInitial) {
+            await fetchAndHandle(() => PokemonApiClient.getPokemonsFirstPage());
+            return;
+        }
+        if (!url) {
+            setError("No URL provided for fetching data");
+            setLoading(false);
+            return;
+        }
+        await fetchAndHandle(() => PokemonApiClient.getPokemonsCustomPage(url));
+    };
+
+
+    useEffect(() => {
+        if (initialFetchDone.current || isSearchOn) return;
+        initialFetchDone.current = true;
+        fetchPokemon(undefined, true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSearchOn]);
+
+    return {
+        pokemonList,
+        loading,
+        error,
+        nextUrl,
+        prevUrl,
+        count,
+        fetchPokemon,
+        fetchLastPage,
+        setPokemonList, // in case you want to update it directly
+    };
 }; 
