@@ -23,7 +23,7 @@ A React application that displays Pokemon using the PokeAPI, featuring list/grid
     - Desktop: 4 columns
     - Tablet: 3 columns
     - Mobile: 2 columns
-- View preference persists between sessions
+- View preference and number of page persists between sessions thanks to a custom hook and localstorage.
 
 ### Pokemon Details
 - Accessible via `/pokemon/{id}` route
