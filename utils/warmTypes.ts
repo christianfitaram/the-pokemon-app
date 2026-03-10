@@ -1,9 +1,10 @@
-// @ts-ignore
-const { createClient } = require("redis");
-// @ts-ignore
-const fetch = (...args: any[]) => import("node-fetch").then(mod => mod.default(...args));
+import { createClient } from "redis";
+import fetch from "node-fetch";
+import "dotenv/config";
 
-const redis = createClient({ url: "redis://localhost:6379" });
+const redis = createClient({ url: process.env.REDIS_URL || "redis://localhost:6379" });
+const BASE_URL = "https://pokeapi.co/api/v2";
+const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 const POKEMON_TYPES = [
     "normal", "fire", "water", "grass", "electric", "ice",
@@ -11,11 +12,16 @@ const POKEMON_TYPES = [
     "rock", "ghost", "dragon", "dark", "steel", "fairy"
 ];
 
+function toCacheKey(url: string) {
+    return `pokeapi:${url}`;
+}
+
 async function warmTypes() {
     await redis.connect();
 
     for (const type of POKEMON_TYPES) {
-        const cacheKey = `type:${type}`;
+        const typeUrl = `${BASE_URL}/type/${type}`;
+        const cacheKey = toCacheKey(typeUrl);
         const exists = await redis.exists(cacheKey);
 
         if (exists) {
@@ -23,15 +29,14 @@ async function warmTypes() {
             continue;
         }
 
-        const res = await fetch(`https://pokeapi.co/api/v2/type/${type}`);
-        const data = await res.json();
-        const pokemons = data.pokemon.map((entry: any) => entry.pokemon);
+        const res = await fetch(typeUrl);
+        const data: any = await res.json();
 
-        await redis.set(cacheKey, JSON.stringify(pokemons), {
-            EX: 60 * 60 * 24 * 7, // 7 days
+        await redis.set(cacheKey, JSON.stringify(data), {
+            EX: CACHE_TTL_SECONDS,
         });
 
-        console.log(`✅ Cached type '${type}' with ${pokemons.length} Pokémon`);
+        console.log(`✅ Cached type '${type}' (${data.pokemon.length} Pokémon)`);
     }
 
     await redis.quit();
