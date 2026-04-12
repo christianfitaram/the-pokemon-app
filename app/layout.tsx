@@ -57,8 +57,8 @@ export default function RootLayout({
             suppressHydrationWarning={true}
             className={`${appSans.variable} ${appMono.variable} background-default bg-gray-100`}
         >
-        <nav>
-            <h1 className="text-2xl text-white">
+        <nav className="">
+            <h1 className="text-2xl text-white py-2">
                 <Link href={"/"}>The Pokemon APP</Link>
             </h1>
         </nav>

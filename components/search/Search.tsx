@@ -140,7 +140,7 @@ const Search: React.FC<SearchProps> = ({
     );
 
     return (
-        <div className="background-muted bg-gray-400 flex flex-col items-center w-full mb-4 py-4 relative gap-6">
+        <div className="background-muted bg-gray-400 flex flex-col items-center w-full my-4 py-4 relative gap-6">
             <div ref={dropdownRef} className="relative w-full max-w-sm">
                 <SearchInput
                     searchQuery={searchQuery}
