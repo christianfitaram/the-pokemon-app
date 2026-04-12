@@ -17,7 +17,7 @@ const HomePage: React.FC = () => {
         {role: "assistant", content: "How can I help you?"},
     ]);
     const [typeLoading, setTypeLoading] = useState(false);
-    const fetchPokemonRef = useRef<((url?: string, isInitial?: boolean) => void) | null>(null);
+    const fetchPokemonRef = useRef<((url?: string, isInitial?: boolean) => Promise<void>) | null>(null);
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full">
             <Search

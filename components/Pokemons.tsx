@@ -8,7 +8,7 @@ import { formatURLpagination } from "@/utils/formatURLpagination";
 const Pokemons: React.FC<
     ToDisplayProps & {
     typeLoading?: boolean;
-    onFetchPokemon?: (fetchPokemon: (url?: string, isInitial?: boolean) => void) => void;
+    onFetchPokemon?: (fetchPokemon: (url?: string, isInitial?: boolean) => Promise<void>) => void;
 }
 > = ({ value, onChange, isSearchOn, typeLoading = false, onFetchPokemon }) => {
     const [currentPage, setCurrentPage] = useState(0);
@@ -34,16 +34,11 @@ const Pokemons: React.FC<
         pokemonList,
         loading,
         error,
-        nextUrl,
-        prevUrl,
+        count,
         fetchPokemon,
-        fetchLastPage,
     } = usePokemonList({
         initialValue: value,
         onChange,
-        isSearchOn,
-        // We pass the current page here, but we’ll still trigger an explicit fetch below.
-        initialPage: currentPage,
     });
 
     // 3) Expose fetchPokemon to parent if needed
@@ -75,12 +70,10 @@ const Pokemons: React.FC<
     return (
         <PokemonsToDisplay
             pokemons={isSearchOn ? value : pokemonList}
-            prevUrl={prevUrl}
-            nextUrl={nextUrl}
+            count={count}
             loading={loading || typeLoading} // keep prop name if used elsewhere
             isSearchOn={isSearchOn}
             fetchPokemon={fetchPokemon}
-            fetchLastPage={fetchLastPage}
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             pending={loading || typeLoading} // NEW

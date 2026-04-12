@@ -11,9 +11,18 @@ export async function GET(
 
   try {
     const url = await PokemonRepository.getEvolutionChainURL(name);
-    const dataEvo = await PokemonRepository.getEvolutionChainData(url)
-    return NextResponse.json(dataEvo);
+    const dataEvo = await PokemonRepository.getEvolutionChainData(url);
+    return NextResponse.json({
+      success: true,
+      data: dataEvo,
+    });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: (error as Error).message,
+      },
+      { status: 500 }
+    );
   }
 }

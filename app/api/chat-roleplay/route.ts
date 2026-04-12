@@ -1,6 +1,7 @@
 import {NextRequest} from "next/server";
 import { pool } from "@/lib/db/pgvector";
 import OpenAI from "openai";
+import { isOriginAllowed } from "@/lib/security/origin";
 
 
 async function getPokemonByNormalizedName(pokemonName: string) {
@@ -41,6 +42,14 @@ function getOpenAIClient() {
 }
 
 export async function POST(req: NextRequest) {
+    const origin = req.headers.get("origin");
+    if (!origin || !isOriginAllowed(origin)) {
+        return Response.json(
+            { error: !origin ? "Origin header required for this endpoint" : "Unauthorized origin" },
+            { status: 403 }
+        );
+    }
+
     const {message, pokemon, chatHistory} = await req.json();
     const safeMessage = typeof message === "string" ? message : "";
     const safePokemon = typeof pokemon === "string" ? pokemon : "";

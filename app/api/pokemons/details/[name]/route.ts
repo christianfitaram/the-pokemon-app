@@ -6,8 +6,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ name: s
 
   try {
     const pokemonDetails = await PokemonRepository.getPokemonByName(name);
-    return NextResponse.json(pokemonDetails);
+    return NextResponse.json({
+      success: true,
+      data: pokemonDetails,
+    });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: (error as Error).message,
+      },
+      { status: 500 }
+    );
   }
 }

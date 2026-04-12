@@ -1,7 +1,7 @@
-import {EvolutionNode} from "@/types/evolutionTypes";
+import {EvolutionNode, Species} from "@/types/evolutionTypes";
 
-export const getAllSpecies = (node: EvolutionNode): string[] => {
-    let speciesList = [node.species.name];
+export const getAllSpecies = (node: EvolutionNode): Species[] => {
+    let speciesList: Species[] = [node.species];
 
     node.evolves_to.forEach((child) => {
         speciesList = speciesList.concat(getAllSpecies(child));

@@ -1,6 +1,7 @@
 // app/lib/repositories/pokemonRepository.ts
 
 import { Pokemon, PokemonDetails, PokemonListResponse } from "@/types/interfaces";
+import { EvolutionNode } from "@/types/evolutionTypes";
 import { FetchError } from "../error_handling/FetchError";
 import redis, { connectRedis } from "@/lib/redis";
 
@@ -9,27 +10,55 @@ const BASE_URL = "https://pokeapi.co/api/v2";
 // Simple in-memory fallback cache
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const MAX_MEMORY_CACHE_SIZE = 500;
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 10000): Promise<Response> {
-    return Promise.race([
-        fetch(url, options),
-        new Promise<Response>((_, reject) =>
-            setTimeout(() => reject(new Error(`Fetch timeout after ${timeout}ms`)), timeout)
-        )
-    ]);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timeoutId);
+    }
 }
 
 export class PokemonRepository {
+    private static enforceMemoryCacheSize() {
+        while (cache.size > MAX_MEMORY_CACHE_SIZE) {
+            const oldestKey = cache.keys().next().value;
+            if (!oldestKey) break;
+            cache.delete(oldestKey);
+        }
+    }
+
     private static getCachedData(key: string) {
         const cached = cache.get(key);
         if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+            // Refresh insertion order to keep recently-used keys in the cache.
+            cache.delete(key);
+            cache.set(key, cached);
             return cached.data;
+        }
+        if (cached) {
+            cache.delete(key);
         }
         return null;
     }
 
     private static setCachedData(key: string, data: unknown) {
+        if (cache.has(key)) {
+            cache.delete(key);
+        }
         cache.set(key, { data, timestamp: Date.now() });
+        this.enforceMemoryCacheSize();
+    }
+
+    static getMemoryCacheSizeForTests(): number {
+        return cache.size;
+    }
+
+    static clearMemoryCacheForTests(): void {
+        cache.clear();
     }
 
     private static pruneExpiredMemoryCache() {
@@ -39,6 +68,7 @@ export class PokemonRepository {
                 cache.delete(key);
             }
         }
+        this.enforceMemoryCacheSize();
     }
 
     private static async mapWithConcurrency<T, R>(
@@ -132,21 +162,20 @@ export class PokemonRepository {
         }
     }
 
-    // 🔽 Existing Methods (unchanged)
     static async getAllPokemons(): Promise<PokemonListResponse> {
         return await this.fetchWithErrorHandling(`${BASE_URL}/pokemon?limit=1302`);
     }
 
-    static async gePokemonsFirstPage(): Promise<PokemonListResponse> {
+    static async getPokemonsFirstPage(): Promise<PokemonListResponse> {
         return this.getEnrichedPokemonPage(0, 24);
     }
 
-    static async gePokemonsLastPage(n: string): Promise<PokemonListResponse> {
+    static async getPokemonsLastPage(n: string): Promise<PokemonListResponse> {
         const offset = Number(n);
         return this.getEnrichedPokemonPage(Number.isFinite(offset) ? offset : 0, 24);
     }
 
-    static async gePokemonsCustomPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
+    static async getPokemonsCustomPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
         return this.getEnrichedPokemonPage(offset, limit);
     }
 
@@ -187,7 +216,7 @@ export class PokemonRepository {
         return evoData.chain.species.url;
     }
 
-    static async getEvolutionChainData(url: string): Promise<string> {
+    static async getEvolutionChainData(url: string): Promise<EvolutionNode> {
         const speciesData = await this.fetchWithErrorHandling(url);
         const evoData = await this.fetchWithErrorHandling(speciesData.evolution_chain.url);
         return evoData.chain;

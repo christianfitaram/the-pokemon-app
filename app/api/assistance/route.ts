@@ -2,6 +2,7 @@ import {NextRequest} from "next/server";
 import OpenAI from "openai";
 import {pool} from "@/lib/db/pgvector";
 import formatPokemonForContext from "@/utils/formatPokemonForContextAPI";
+import { isOriginAllowed } from "@/lib/security/origin";
 
 function getOpenAIClient() {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -12,6 +13,14 @@ function getOpenAIClient() {
 }
 
 export async function POST(req: NextRequest) {
+    const origin = req.headers.get("origin");
+    if (!origin || !isOriginAllowed(origin)) {
+        return Response.json(
+            { error: !origin ? "Origin header required for this endpoint" : "Unauthorized origin" },
+            { status: 403 }
+        );
+    }
+
     const {chatHistory} = await req.json();
     const safeChatHistory = Array.isArray(chatHistory) ? chatHistory : [];
     const userMessage = safeChatHistory.at(-1)?.content || "Find a Pokémon";

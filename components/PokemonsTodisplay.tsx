@@ -8,6 +8,7 @@ import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 
 export const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
                                                                         pokemons,
+                                                                        count,
                                                                         loading,
                                                                         isSearchOn,
                                                                         fetchPokemon,
@@ -15,7 +16,7 @@ export const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
                                                                         setCurrentPage,
                                                                         pending = false, // NEW
                                                                     }) => {
-    const { totalPages } = usePagination(24);
+    const { totalPages } = usePagination(count, 24);
     const { preferences, updatePreferences } = useDisplayPreferences(currentPage);
 
     const handlePageChange = async (page: number) => {

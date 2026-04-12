@@ -52,8 +52,7 @@ export class ApiClient {
 export class PokemonApiClient {
   static async getPokemonByName(name: string): Promise<ApiResponse<PokemonDetails>> {
     try {
-      const data = await ApiClient.get<PokemonDetails>(`/pokemons/details/${name}`);
-      return { success: true, data };
+      return await ApiClient.get<ApiResponse<PokemonDetails>>(`/pokemons/details/${name}`);
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
@@ -61,8 +60,7 @@ export class PokemonApiClient {
 
   static async getPokemonsByType(type: string): Promise<ApiResponse<Pokemon[]>> {
     try {
-      const data = await ApiClient.get<Pokemon[]>(`/pokemons/get-by-type/${type}`);
-      return { success: true, data };
+      return await ApiClient.get<ApiResponse<Pokemon[]>>(`/pokemons/get-by-type/${type}`);
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
@@ -79,8 +77,7 @@ export class PokemonApiClient {
 
   static async getPokemonsFirstPage(): Promise<ApiResponse<PokemonListResponse>> {
     try {
-      const data = await ApiClient.get<PokemonListResponse>('/pokemons/first-page');
-      return { success: true, data };
+      return await ApiClient.get<ApiResponse<PokemonListResponse>>('/pokemons/first-page');
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
@@ -88,8 +85,7 @@ export class PokemonApiClient {
 
   static async getPokemonsLastPage(n: string): Promise<ApiResponse<PokemonListResponse>> {
     try {
-      const data = await ApiClient.get<PokemonListResponse>(`/pokemons/last-page/${n}`);
-      return { success: true, data };
+      return await ApiClient.get<ApiResponse<PokemonListResponse>>(`/pokemons/last-page/${n}`);
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
@@ -97,8 +93,7 @@ export class PokemonApiClient {
 
   static async getPokemonsCustomPage(offset: number, limit: number = 24): Promise<ApiResponse<PokemonListResponse>> {
     try {
-      const data = await ApiClient.post<PokemonListResponse>('/pokemons/custom-page', { offset, limit });
-      return { success: true, data };
+      return await ApiClient.post<ApiResponse<PokemonListResponse>>('/pokemons/custom-page', { offset, limit });
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
@@ -106,8 +101,7 @@ export class PokemonApiClient {
 
   static async getRandomPokemon(): Promise<ApiResponse<Pokemon>> {
     try {
-      const data = await ApiClient.get<Pokemon>('/pokemons/random');
-      return { success: true, data };
+      return await ApiClient.get<ApiResponse<Pokemon>>('/pokemons/random');
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
@@ -115,8 +109,7 @@ export class PokemonApiClient {
 
   static async getPokemonEvolutionChain(name: string): Promise<ApiResponse<EvolutionNode>> {
     try {
-      const data = await ApiClient.get<EvolutionNode>(`/pokemons/evolution-chain/${name}`);
-      return { success: true, data };
+      return await ApiClient.get<ApiResponse<EvolutionNode>>(`/pokemons/evolution-chain/${name}`);
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }

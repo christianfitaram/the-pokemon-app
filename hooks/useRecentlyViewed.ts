@@ -17,8 +17,9 @@ export const useRecentlyViewed = (limit = 10) => {
     }
   }, []);
 
-  const savePokemon = useCallback((name: string) => {
-    const url = getUrl(name);
+  const savePokemon = useCallback((pokemon: Pick<Pokemon, "name" | "id">) => {
+    const { name, id } = pokemon;
+    const url = getUrl(name, id);
     let stored: Pokemon[] = [];
     try {
       stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -26,7 +27,7 @@ export const useRecentlyViewed = (limit = 10) => {
       stored = [];
     }
     const updated: Pokemon[] = [
-      { name, url, viewedAt: Date.now() },
+      { name, id, url, viewedAt: Date.now() },
       ...stored.filter((p) => p.name !== name),
     ].slice(0, limit);
 
@@ -37,14 +38,9 @@ export const useRecentlyViewed = (limit = 10) => {
   return { recent, savePokemon };
 };
 
-function getUrl(name: string) {
-  const prePath = "/pokemon/";
-  if (typeof window === "undefined") {
-    // Server side: use absolute URL from env variable
-    const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-
-    return base + prePath + name;
+function getUrl(name: string, id?: number) {
+  if (typeof id === "number" && Number.isInteger(id) && id > 0) {
+    return `https://pokeapi.co/api/v2/pokemon/${id}/`;
   }
-  // Client side: relative URL
-  return prePath + name;
+  return `https://pokeapi.co/api/v2/pokemon/${name.toLowerCase()}`;
 }

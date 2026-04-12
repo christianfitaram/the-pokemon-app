@@ -43,7 +43,6 @@ export async function generateMetadata({
         keywords: [
           `${pokemonName}`,
           "pokemon",
-          "pokemon pokemon",
           types,
           "evolution",
           "stats",

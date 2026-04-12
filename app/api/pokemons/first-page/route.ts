@@ -3,9 +3,18 @@ import { PokemonRepository } from "@/lib/repositories/PokemonRepository";
 
 export async function GET() {
   try {
-    const getPokemonsFirstPage = await PokemonRepository.gePokemonsFirstPage();
-    return NextResponse.json(getPokemonsFirstPage);
+    const firstPageData = await PokemonRepository.getPokemonsFirstPage();
+    return NextResponse.json({
+      success: true,
+      data: firstPageData,
+    });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: (error as Error).message,
+      },
+      { status: 500 }
+    );
   }
 }

@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isOriginAllowed } from '@/lib/security/origin';
 
-// Security configuration
-const DEFAULT_ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:3001',
-  // Production domains
-  'https://project1.enricfitaram.dev',
-  'https://www.project1.enricfitaram.dev',
-];
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-const SAFE_ALLOWED_ORIGINS = ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : DEFAULT_ALLOWED_ORIGINS;
+const COSTLY_API_PATHS = new Set([
+  "/api/assistance",
+  "/api/chat-roleplay",
+]);
 
 // Rate limiting store (in production, use Redis or similar)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -37,8 +27,19 @@ export function middleware(request: NextRequest) {
 
   // 1. Origin check
   const origin = request.headers.get('origin');
+  const isCostlyRoute = COSTLY_API_PATHS.has(request.nextUrl.pathname);
 
-  if (origin && !SAFE_ALLOWED_ORIGINS.includes(origin)) {
+  if (isCostlyRoute && !origin) {
+    return new NextResponse(
+      JSON.stringify({ error: 'Origin header required for this endpoint' }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
+  if (origin && !isOriginAllowed(origin)) {
     return new NextResponse(
       JSON.stringify({ error: 'Unauthorized origin' }),
       { 

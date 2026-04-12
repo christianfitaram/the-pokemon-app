@@ -44,12 +44,12 @@ export const EvolutionCard = ({name}: { name: string}  ) => {
                 <Title>
                     {(numOfEvolutions != null && numOfEvolutions > 3) ? ('Possible Evolutions: ') : ('Evolution chain:')}
                 </Title>
-                {getAllSpecies(evolutionChainContent).map((name, index) => {
+                {getAllSpecies(evolutionChainContent).map((species, index) => {
                     const pokemon = {
-                        name: name,
-                        url: `https://pokeapi.co/api/v2/pokemon/${name}`,
+                        name: species.name,
+                        url: species.url,
                     };
-                    return originalPokemon == name ? (
+                    return originalPokemon == species.name ? (
                         <PokemonCardWrapper numOfEvolutions={numOfEvolutions} key={index}>
                             <PokemonCard
                                 pokemonOverview={pokemon}

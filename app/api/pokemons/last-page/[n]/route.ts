@@ -9,18 +9,24 @@ export async function GET(
   const { n } = await params;
 
   try {
-    const response : PokemonListResponse = await PokemonRepository.gePokemonsLastPage(n);
+    const response : PokemonListResponse = await PokemonRepository.getPokemonsLastPage(n);
     let pokemonDetails = response;
     if (response.results.length === 0 && response.previous) {
       const parsed = new URL(response.previous);
       const offset = Number(parsed.searchParams.get("offset") ?? 0);
       const limit = Number(parsed.searchParams.get("limit") ?? 24);
-      pokemonDetails = await PokemonRepository.gePokemonsCustomPage(offset, limit);
+      pokemonDetails = await PokemonRepository.getPokemonsCustomPage(offset, limit);
     }
-    return NextResponse.json(pokemonDetails);
+    return NextResponse.json({
+      success: true,
+      data: pokemonDetails,
+    });
   } catch (error) {
     return NextResponse.json(
-      { error: (error as Error).message },
+      {
+        success: false,
+        error: (error as Error).message,
+      },
       { status: 500 }
     );
   }

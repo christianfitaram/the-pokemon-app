@@ -9,6 +9,7 @@
     "lint": "next lint",
     "lint:strict": "next lint --max-warnings=0",
     "typecheck": "tsc --noEmit",
+    "test": "jest",
     "test:e2e": "cypress run",
     "warm:cache": "node utils/warmCache.js",
     "warm:types": "node utils/warmTypes.js",

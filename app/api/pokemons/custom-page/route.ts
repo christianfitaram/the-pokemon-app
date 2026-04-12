@@ -10,18 +10,30 @@ export async function POST(req: NextRequest) {
     const limit = Number(rawLimit ?? 24);
 
     if (!Number.isInteger(offset) || offset < 0) {
-      return NextResponse.json({ error: "Invalid offset provided" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Invalid offset provided" },
+        { status: 400 }
+      );
     }
 
     if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
-      return NextResponse.json({ error: "Invalid limit provided" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Invalid limit provided" },
+        { status: 400 }
+      );
     }
 
-    const pokemonDetails = await PokemonRepository.gePokemonsCustomPage(offset, limit);
-    return NextResponse.json(pokemonDetails);
+    const pokemonDetails = await PokemonRepository.getPokemonsCustomPage(offset, limit);
+    return NextResponse.json({
+      success: true,
+      data: pokemonDetails,
+    });
   } catch (error) {
     return NextResponse.json(
-      { error: (error as Error).message },
+      {
+        success: false,
+        error: (error as Error).message,
+      },
       { status: 500 }
     );
   }

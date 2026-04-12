@@ -8,7 +8,7 @@ import { EvolutionCard } from "@/components/pokemon-details/EvolutionCard";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { motion } from "framer-motion";
 import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
-import { getAvergareColor, getColorTheme } from "@/utils/getUIcolors";
+import { getAverageColor, getColorTheme } from "@/utils/getUIcolors";
 import { PokemonTypeList } from "../PokemonTypeCard";
 import { uiThemePokemon } from "@/types/uiThemePokemonType";
 import { PokemonDetailsSkeleton} from "@/components/layout/Skeletons";
@@ -43,7 +43,7 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
 
         if (res.data) {
           setPokemon(res.data);
-          savePokemon(number);
+          savePokemon({ name: res.data.name, id: res.data.id });
         }
       } catch (error) {
         console.error("Failed to fetch Pokemon details", error);
@@ -60,11 +60,11 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
 
   useEffect(() => {
     if (pokemon) {
-      const getUItheme   = (randomPokemons: PokemonDetails) => {
-        setUItheme(getColorTheme(randomPokemons));
+      const getUItheme   = (currentPokemon: PokemonDetails) => {
+        setUItheme(getColorTheme(currentPokemon));
       };
-      const getGradientColorUI = (randomPokemons: PokemonDetails) => {
-        setGradientClass(getAvergareColor(randomPokemons));
+      const getGradientColorUI = (currentPokemon: PokemonDetails) => {
+        setGradientClass(getAverageColor(currentPokemon));
       };
       getUItheme(pokemon);
       getGradientColorUI(pokemon);
@@ -133,7 +133,7 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
               <h5
                 className={`mb-2 text-2xl font-bold tracking-tight ${uiTheme?.textColor} flex flex-row justify-center`}
               >
-                {pokemon?.name.toLocaleUpperCase()}
+                {pokemon?.name.toUpperCase()}
               </h5>
               <div className="grid grid-cols-2 w-fit text-gray-200">
                 <div className="border-r border-b border-white">

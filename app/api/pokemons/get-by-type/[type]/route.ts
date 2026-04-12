@@ -9,8 +9,17 @@ export async function GET(
 
   try {
     const pokemonsByType = await PokemonRepository.getPokemonsByType(type);
-    return NextResponse.json(pokemonsByType);
+    return NextResponse.json({
+      success: true,
+      data: pokemonsByType,
+    });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: (error as Error).message,
+      },
+      { status: 500 }
+    );
   }
 }
