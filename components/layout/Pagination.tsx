@@ -43,7 +43,7 @@ export function PaginationBar({
         if (start !== batchStart) {
             setBatchStart(start);
         }
-    }, [safeCurrent, batchSize]);
+    }, [safeCurrent, batchSize, batchStart]);
 
     const batchEnd = Math.min(batchStart + batchSize, safeTotal);
 

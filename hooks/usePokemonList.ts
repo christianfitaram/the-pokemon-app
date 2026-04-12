@@ -1,7 +1,22 @@
 import {useEffect, useState, useRef, useCallback} from "react";
-import {PokemonListResponse, Pokemon, UsePokemonListProps} from "@/types/interfaces";
+import {ApiResponse, PokemonListResponse, Pokemon, UsePokemonListProps} from "@/types/interfaces";
 import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
 import {getTotalNumPokemon} from "@/lib/getTotalNumPokemon";
+
+const DEFAULT_LIMIT = 24;
+
+function parsePaginationUrl(url: string): { offset: number; limit: number } | null {
+    try {
+        const parsed = new URL(url);
+        const offset = Number(parsed.searchParams.get("offset") ?? 0);
+        const limit = Number(parsed.searchParams.get("limit") ?? DEFAULT_LIMIT);
+        if (!Number.isInteger(offset) || offset < 0) return null;
+        if (!Number.isInteger(limit) || limit <= 0 || limit > 100) return null;
+        return { offset, limit };
+    } catch {
+        return null;
+    }
+}
 
 
 export const usePokemonList = ({
@@ -33,18 +48,19 @@ export const usePokemonList = ({
         try {
             setLoading(true);
             const totalPokemon = await getTotalNumPokemon();
-            const offset = Math.floor(totalPokemon / 24) * 24;
-            const url = `https://pokeapi.co/api/v2/pokemon?offset=${offset}&limit=24`;
+            const offset = Math.max(0, totalPokemon - DEFAULT_LIMIT);
+            const response = await PokemonApiClient.getPokemonsCustomPage(offset, DEFAULT_LIMIT);
 
-            const response = await fetch(url);
-            const data: PokemonListResponse = await response.json();
+            if (response.success && response.data) {
+                setPokemonList(response.data.results);
+                setNextUrl(response.data.next);
+                setPrevUrl(response.data.previous);
 
-            setPokemonList(data.results);
-            setNextUrl(data.next);
-            setPrevUrl(data.previous);
-
-            if (!isSearchOn) {
-                onChange(data.results);
+                if (!isSearchOn) {
+                    onChange(response.data.results);
+                }
+            } else {
+                setError(response.error || "Failed to fetch last page");
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch Pokemon');
@@ -55,12 +71,18 @@ export const usePokemonList = ({
 
 
     // Unified fetch logic
-    const fetchAndHandle = async (fetcher: () => Promise<any>) => {
+    const fetchAndHandle = async (
+        fetcher: () => Promise<ApiResponse<PokemonListResponse>>
+    ) => {
         try {
             setLoading(true);
+            setError(null);
             const res = await fetcher();
             const data = res?.data;
-            if (!data) console.log("No data returned from API");
+            if (!res.success || !data) {
+                setError(res.error || "No data returned from API");
+                return;
+            }
             handlePokemonApiResponse(data);
         } catch (error) {
             setError((error as Error).message);
@@ -79,7 +101,17 @@ export const usePokemonList = ({
             setLoading(false);
             return;
         }
-        await fetchAndHandle(() => PokemonApiClient.getPokemonsCustomPage(url));
+
+        const pagination = parsePaginationUrl(url);
+        if (!pagination) {
+            setError("Invalid pagination URL provided");
+            setLoading(false);
+            return;
+        }
+
+        await fetchAndHandle(() =>
+            PokemonApiClient.getPokemonsCustomPage(pagination.offset, pagination.limit)
+        );
     };
 
 

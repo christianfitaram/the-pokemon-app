@@ -29,7 +29,7 @@ export default function Page() {
           const retryRequest = await PokemonApiClient.getRandomPokemon();
           if (retryRequest.success && retryRequest.data?.name) {
             console.log("Navigating to:", retryRequest.data.name);
-            router.push(`/details/${retryRequest.data.name.toLowerCase()}`);
+            router.push(`/pokemon/${retryRequest.data.name.toLowerCase()}`);
           } else {
             console.error("Failed to get pokemon name after retry");
           }
@@ -45,7 +45,7 @@ export default function Page() {
     };
 
     getRandomPokemon();
-  }, []); // Empty dependency array - only runs once
+  }, [router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

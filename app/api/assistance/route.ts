@@ -3,11 +3,19 @@ import OpenAI from "openai";
 import {pool} from "@/lib/db/pgvector";
 import formatPokemonForContext from "@/utils/formatPokemonForContextAPI";
 
-const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY});
+function getOpenAIClient() {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error("OPENAI_API_KEY is not configured");
+    }
+    return new OpenAI({apiKey});
+}
 
 export async function POST(req: NextRequest) {
     const {chatHistory} = await req.json();
-    const userMessage = chatHistory.at(-1)?.content || "Find a Pokémon";
+    const safeChatHistory = Array.isArray(chatHistory) ? chatHistory : [];
+    const userMessage = safeChatHistory.at(-1)?.content || "Find a Pokémon";
+    const openai = getOpenAIClient();
 
     // Step 1: Embed the user query
     const embeddingResponse = await openai.embeddings.create({
@@ -51,7 +59,7 @@ export async function POST(req: NextRequest) {
                 : "No matching Pokémon found.",
 
         },
-        ...chatHistory,
+        ...safeChatHistory,
         {
             role: "user",
             content: userMessage,
@@ -89,5 +97,3 @@ export async function POST(req: NextRequest) {
         },
     });
 }
-
-

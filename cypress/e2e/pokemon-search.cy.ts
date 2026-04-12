@@ -4,21 +4,14 @@ describe('Pokemon Search', () => {
   });
 
   it('should search for a pokemon and display details', () => {
-    // Search for a pokemon
-    cy.get('[data-testid="search-input"]')
-        .wait(4000)
-      .type('pikachu');
+    cy.get('[data-testid="search-input"]').type('pikachu');
 
-    // Verify the pokemon card appears
     cy.get('[data-testid="pokemon-card-pikachu"]')
       .should('exist')
       .and('contain', 'pikachu');
 
-    // Click on the pokemon card
     cy.get('[data-testid="pokemon-card-pikachu"]').click();
 
-    cy.wait(3000);
-    // Verify detailed information is displayed
     cy.get('[data-testid="pokemon-details"]')
       .should('exist')
       .and('contain', 'Electric')

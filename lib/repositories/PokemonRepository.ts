@@ -7,10 +7,8 @@ import redis, { connectRedis } from "@/lib/redis";
 const BASE_URL = "https://pokeapi.co/api/v2";
 
 // Simple in-memory fallback cache
-const cache = new Map<string, { data: any; timestamp: number }>();
+const cache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
-let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 1000; // 1 second
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 10000): Promise<Response> {
     return Promise.race([
@@ -30,24 +28,68 @@ export class PokemonRepository {
         return null;
     }
 
-    private static setCachedData(key: string, data: any) {
+    private static setCachedData(key: string, data: unknown) {
         cache.set(key, { data, timestamp: Date.now() });
     }
 
-    private static async throttleRequest() {
+    private static pruneExpiredMemoryCache() {
         const now = Date.now();
-        const timeSinceLastRequest = now - lastRequestTime;
-
-        if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-            const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-            await new Promise(resolve => setTimeout(resolve, waitTime));
+        for (const [key, value] of cache.entries()) {
+            if (now - value.timestamp >= CACHE_DURATION) {
+                cache.delete(key);
+            }
         }
+    }
 
-        lastRequestTime = Date.now();
+    private static async mapWithConcurrency<T, R>(
+        items: T[],
+        concurrency: number,
+        mapper: (item: T) => Promise<R>
+    ): Promise<R[]> {
+        const safeConcurrency = Math.max(1, Math.min(concurrency, items.length || 1));
+        const result: R[] = new Array(items.length);
+        let index = 0;
+
+        const workers = new Array(safeConcurrency).fill(null).map(async () => {
+            while (index < items.length) {
+                const currentIndex = index++;
+                result[currentIndex] = await mapper(items[currentIndex]);
+            }
+        });
+
+        await Promise.all(workers);
+        return result;
+    }
+
+    private static async enrichPokemonList(results: Pokemon[]): Promise<Pokemon[]> {
+        return this.mapWithConcurrency(results, 6, async (pokemon) => {
+            try {
+                const details = await this.getPokemonByName(pokemon.name);
+                return {
+                    ...pokemon,
+                    id: details.id,
+                    types: details.types,
+                    base_experience: details.base_experience,
+                };
+            } catch {
+                return pokemon;
+            }
+        });
+    }
+
+    private static async getPokemonPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
+        return this.fetchWithErrorHandling(`${BASE_URL}/pokemon?offset=${offset}&limit=${limit}`);
+    }
+
+    private static async getEnrichedPokemonPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
+        const response = await this.getPokemonPage(offset, limit);
+        const enriched = await this.enrichPokemonList(response.results);
+        return { ...response, results: enriched };
     }
 
     static async fetchWithErrorHandling(url: string, retries = 3, delay = 1000) {
         await connectRedis();
+        this.pruneExpiredMemoryCache();
 
         const redisKey = `pokeapi:${url}`;
         const cachedData = await redis.get(redisKey);
@@ -60,8 +102,6 @@ export class PokemonRepository {
         if (memoryCache) {
             return memoryCache;
         }
-
-        await this.throttleRequest();
 
         for (let attempt = 0; attempt <= retries; attempt++) {
             try {
@@ -97,16 +137,17 @@ export class PokemonRepository {
         return await this.fetchWithErrorHandling(`${BASE_URL}/pokemon?limit=1302`);
     }
 
-    static async gePokemonsFirstPage(): Promise<Pokemon[]> {
-        return await this.fetchWithErrorHandling(`${BASE_URL}/pokemon?limit=24`);
+    static async gePokemonsFirstPage(): Promise<PokemonListResponse> {
+        return this.getEnrichedPokemonPage(0, 24);
     }
 
     static async gePokemonsLastPage(n: string): Promise<PokemonListResponse> {
-        return this.fetchWithErrorHandling(`${BASE_URL}/pokemon/?offset=${n}`);
+        const offset = Number(n);
+        return this.getEnrichedPokemonPage(Number.isFinite(offset) ? offset : 0, 24);
     }
 
-    static async gePokemonsCustomPage(url: string): Promise<PokemonListResponse> {
-        return this.fetchWithErrorHandling(url);
+    static async gePokemonsCustomPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
+        return this.getEnrichedPokemonPage(offset, limit);
     }
 
     static async getPokemonByName(name: string): Promise<PokemonDetails> {
@@ -125,8 +166,19 @@ export class PokemonRepository {
     }
 
     static async getRandomPokemon(): Promise<PokemonDetails> {
-        const randomId = Math.floor(Math.random() * 1302) + 1;
-        return this.getPokemonById(randomId);
+        const countResponse = await this.fetchWithErrorHandling(`${BASE_URL}/pokemon?limit=1`) as PokemonListResponse;
+        const total = countResponse.count;
+        const randomOffset = Math.floor(Math.random() * total);
+        const randomEntry = await this.fetchWithErrorHandling(
+            `${BASE_URL}/pokemon?offset=${randomOffset}&limit=1`
+        ) as PokemonListResponse;
+
+        const pokemonName = randomEntry.results?.[0]?.name;
+        if (!pokemonName) {
+            throw new FetchError(500, "Failed to select a random Pokemon");
+        }
+
+        return this.getPokemonByName(pokemonName);
     }
 
     static async getEvolutionChainURL(name: string): Promise<string> {

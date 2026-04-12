@@ -3,9 +3,9 @@ import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
 import {ChatMessage, UnifiedChatProps} from "@/types/interfaces";
 import { FaUser, FaRobot, FaPlusCircle, FaLongArrowAltLeft } from "react-icons/fa";
 import TypingIndicator from "./TypingIndicator";
-import { marked } from "marked";
 import { motion } from "framer-motion";
 import {chatApi} from "@/lib/api_clients/pokemonApiClient";
+import Image from "next/image";
 
 export default function UnifiedChat({
   chatType,
@@ -53,7 +53,9 @@ export default function UnifiedChat({
         ? await chatApi.roleplay(input, pokemon!.name, newMessages)
         : await chatApi.assistant(newMessages);
 
-      if (!res.body) console.log("No response body");
+      if (!res.body) {
+        throw new Error("No response body");
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -141,9 +143,11 @@ export default function UnifiedChat({
   const getAssistantIcon = () => {
     if (chatType === "pokemon" && pokemon) {
       return (
-        <img
+        <Image
           src={pokemon.sprites.other["official-artwork"].front_default}
           alt={pokemon.name}
+          width={24}
+          height={24}
           className="h-6 w-6"
         />
       );
@@ -183,6 +187,8 @@ export default function UnifiedChat({
           <div className="flex flex-col">
             <button
               onClick={onClose}
+              aria-label="Close chat"
+              title="Close chat"
               className="bg-icon-header rounded-full p-2 hover:bg-gray-700"
             >
               <FaPlusCircle className="h-6 w-6 rotate-45 text-white" />
@@ -191,6 +197,8 @@ export default function UnifiedChat({
         </div>
         <div
           ref={messagesEndRef}
+          role="log"
+          aria-live="polite"
           className="h-64 sm:h-72 md:h-80 lg:h-96 overflow-y-auto p-3 bg-body-chat mb-2 rounded-b-lg shadow-[inset_0_8px_16px_-4px_rgba(255,255,255,0.1)]"
         >
           {messages.map((msg, idx) => (
@@ -226,11 +234,10 @@ export default function UnifiedChat({
                   msg.role === "user"
                     ? "bg-bubble-1 text-right"
                     : "bg-bubble-2 text-left"
-                } w-fit max-w-[85%] sm:max-w-[80%] md:max-w-[75%] inline-block px-3 py-2 rounded-lg font-[family-name:var(--font-geist-mono)] text-gray-200 break-words`}
-                dangerouslySetInnerHTML={{
-                  __html: marked.parse(msg.content),
-                }}
-              />
+                } w-fit max-w-[85%] sm:max-w-[80%] md:max-w-[75%] inline-block px-3 py-2 rounded-lg font-[family-name:var(--font-geist-mono)] text-gray-200 break-words whitespace-pre-wrap`}
+              >
+                {msg.content}
+              </div>
             </div>
           ))}
           {loading && <TypingIndicatorComponent />}
@@ -240,11 +247,13 @@ export default function UnifiedChat({
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
+          aria-label="Chat message input"
           placeholder="Ask something..."
           className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-3 mb-2 bg-body-chat text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           disabled={loading}
         />
         <button
+          type="button"
           onClick={sendMessage}
           disabled={loading}
           className="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600"
@@ -254,7 +263,12 @@ export default function UnifiedChat({
       </div>
       {showBackButton && onBack && (
         <div className="flex flex-row justify-start mb-2">
-          <button onClick={onBack} className="text-gray-200 hover:text-gray-400 flex flex-row items-center gap-2 border border-gray-200 rounded-full px-3">
+          <button
+            type="button"
+            aria-label="Back to Pokemon details"
+            onClick={onBack}
+            className="text-gray-200 hover:text-gray-400 flex flex-row items-center gap-2 border border-gray-200 rounded-full px-3"
+          >
             <FaLongArrowAltLeft className="h-6 w-6" />
             <span>Back</span>
           </button>

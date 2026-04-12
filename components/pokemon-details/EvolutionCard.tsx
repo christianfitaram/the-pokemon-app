@@ -21,7 +21,6 @@ export const EvolutionCard = ({name}: { name: string}  ) => {
                 setEvolutionChainContent(result.data);
             } else {
                 setError(result.error || "Unknown error");
-                console.log(error);
             }
         }
 
@@ -29,14 +28,9 @@ export const EvolutionCard = ({name}: { name: string}  ) => {
     }, [name]);
 
     useEffect(() => {
-        async function NumOfEvolutions() {
-            if (evolutionChainContent != null) {
-                setNumOfEvolutions(getAllSpecies(evolutionChainContent).length)
-                console.log(numOfEvolutions)
-            }
+        if (evolutionChainContent != null) {
+            setNumOfEvolutions(getAllSpecies(evolutionChainContent).length)
         }
-
-        NumOfEvolutions();
     }, [evolutionChainContent]);
 
     if (error) {

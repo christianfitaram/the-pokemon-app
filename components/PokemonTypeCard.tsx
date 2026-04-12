@@ -1,6 +1,7 @@
 import { PokemonDetails, PokemonType } from "@/types/interfaces";
 import { typeColors } from "@/utils/typeColors";
 import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
+import Image from "next/image";
 
 export function PokemonTypeCard({ type }: {type: PokemonType}) {
   const typeName = type.type.name;
@@ -17,9 +18,11 @@ export function PokemonTypeCard({ type }: {type: PokemonType}) {
           } as React.CSSProperties
         }
       >
-        <img
+        <Image
           src={`/assets/img/icons/${typeName}.svg`}
           alt={`${typeName} icon`}
+          width={20}
+          height={20}
           className="w-5 h-5 "
         />
       </div>

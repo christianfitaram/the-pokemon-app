@@ -5,17 +5,16 @@ const http = require('http');
 
 // Configuration
 const BASE_URL = process.env.TEST_URL || 'https://project1.enricfitaram.dev';
-const FRONTEND_SECRET = process.env.FRONTEND_SECRET || 'your-secret-key-change-this';
 
-console.log('🧪 Testing production API endpoints...\n');
-console.log(`📍 Base URL: ${BASE_URL}`);
-console.log(`🔑 Secret configured: ${FRONTEND_SECRET !== 'your-secret-key-change-this' ? 'Yes' : 'No'}\n`);
+console.log('Testing production API endpoints...\n');
+console.log(`Base URL: ${BASE_URL}`);
+console.log('Using middleware origin checks and validated pagination payloads.\n');
 
 // Test endpoints
 const endpoints = [
   '/api/pokemons/first-page',
   '/api/pokemons/get-all',
-  '/api/pokemons/random'
+  '/api/pokemons/random',
 ];
 
 async function testEndpoint(endpoint) {
@@ -31,7 +30,6 @@ async function testEndpoint(endpoint) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'x-frontend-secret': FRONTEND_SECRET,
         'User-Agent': 'Pokemon-App-Test/1.0'
       }
     };
@@ -94,25 +92,25 @@ async function runTests() {
       } else {
         console.log(`❌ ${endpoint} - Status: ${result.status}`);
         if (result.data && result.data.error) {
-          console.log(`   🚨 Error: ${result.data.error}`);
+          console.log(`    Error: ${result.data.error}`);
           if (result.data.received) {
-            console.log(`   📨 Received origin: ${result.data.received}`);
+            console.log(`    Received origin: ${result.data.received}`);
           }
           if (result.data.allowed) {
-            console.log(`   ✅ Allowed origins: ${result.data.allowed.join(', ')}`);
+            console.log(`    Allowed origins: ${result.data.allowed.join(', ')}`);
           }
         }
       }
     } catch (error) {
-      console.log(`💥 ${endpoint} - Error: ${error.error || error.message}`);
+      console.log(` ${endpoint} - Error: ${error.error || error.message}`);
     }
     console.log('');
   }
   
-  console.log('🏁 Tests completed!');
-  console.log('\n💡 Troubleshooting tips:');
-  console.log('1. Check if FRONTEND_SECRET is set in production');
-  console.log('2. Verify the domain is in ALLOWED_ORIGINS');
+  console.log(' Tests completed!');
+  console.log('\n Troubleshooting tips:');
+  console.log('1. Verify the domain is in ALLOWED_ORIGINS');
+  console.log('2. Ensure /api/pokemons/custom-page only receives offset/limit');
   console.log('3. Check server logs for middleware debugging info');
   console.log('4. Ensure environment variables are loaded correctly');
 }

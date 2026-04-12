@@ -32,10 +32,20 @@ async function getPokemonByNormalizedName(pokemonName: string) {
     return rows[0];
 }
 
-const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY});
+function getOpenAIClient() {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        throw new Error("OPENAI_API_KEY is not configured");
+    }
+    return new OpenAI({apiKey});
+}
 
 export async function POST(req: NextRequest) {
     const {message, pokemon, chatHistory} = await req.json();
+    const safeMessage = typeof message === "string" ? message : "";
+    const safePokemon = typeof pokemon === "string" ? pokemon : "";
+    const safeChatHistory = Array.isArray(chatHistory) ? chatHistory : [];
+    const openai = getOpenAIClient();
 
     const messages = [
         {
@@ -43,8 +53,8 @@ export async function POST(req: NextRequest) {
             content:
                 "You are a Pokémon who talks in the first person. Use the function getPokemonInfo to get data.",
         },
-        ...(chatHistory ?? []),
-        {role: "user", content: message},
+        ...safeChatHistory,
+        {role: "user", content: safeMessage},
     ];
 
     // First call to check if function should be called
@@ -77,7 +87,7 @@ export async function POST(req: NextRequest) {
         // If function call detected
         const toolCall = messageResponse.tool_calls[0];
         const funcArgs = JSON.parse(toolCall.function.arguments);
-        const pokeName = funcArgs.name || pokemon;
+        const pokeName = funcArgs.name || safePokemon;
 
         const pokeRes = await fetch(
             `https://pokeapi.co/api/v2/pokemon/${pokeName.toLowerCase()}`
@@ -94,17 +104,17 @@ export async function POST(req: NextRequest) {
             );
         }
         const dbData = await getPokemonByNormalizedName(pokeName);
-        const evolutionChainSentence = dbData.evolution_chain?.length > 1
+        const evolutionChainSentence = dbData?.evolution_chain?.length > 1
             ? `This Pokémon evolves from ${dbData.evolution_chain[0]} to ${dbData.evolution_chain[dbData.evolution_chain.length - 1]}.`
             : `This Pokémon does not evolve.`;
 
         let evolutionTreeSentence = "Evolution data unavailable.";
         try {
-            const nextEvo = dbData.evolution_tree?.evolves_to?.[0]?.name;
+            const nextEvo = dbData?.evolution_tree?.evolves_to?.[0]?.name;
             if (nextEvo) {
-                evolutionTreeSentence = `${dbData.evolution_tree.name} evolves into ${nextEvo}.`;
+                evolutionTreeSentence = `${dbData?.evolution_tree?.name} evolves into ${nextEvo}.`;
             } else {
-                evolutionTreeSentence = `${dbData.evolution_tree.name} does not evolve.`;
+                evolutionTreeSentence = `${dbData?.evolution_tree?.name || pokeName} does not evolve.`;
             }
         } catch {}
         const data = await pokeRes.json();
@@ -112,19 +122,19 @@ export async function POST(req: NextRequest) {
         const summary = {
             base_happiness: specieData.base_happiness || null,
             name: data.name,
-            abilities : data.abilities.map((a: any) => a.ability.name),
-            habitat: dbData.habitat || null,
+            abilities : data.abilities.map((a: { ability: { name: string } }) => a.ability.name),
+            habitat: dbData?.habitat || null,
             height:(data?.height / 10).toFixed(1)+'m',
             weight:(data?.weight / 10).toFixed(1)+'kg',
             color: specieData.color.name || null,
-            types: data.types.map((t: any) => t.type.name),
-            stats: data.stats.map((s: any) => ({
+            types: data.types.map((t: { type: { name: string } }) => t.type.name),
+            stats: data.stats.map((s: { stat: { name: string }; base_stat: number }) => ({
                 name: s.stat.name,
                 value: s.base_stat,
             })),
-            description: dbData.description || null,
+            description: dbData?.description || null,
             secondary_description: `${data.name} is a Pokémon of type ${data.types
-                .map((t: any) => t.type.name)
+                .map((t: { type: { name: string } }) => t.type.name)
                 .join(", ")}.`,
             evolution_chain: evolutionChainSentence,
             evolution_tree: evolutionTreeSentence,

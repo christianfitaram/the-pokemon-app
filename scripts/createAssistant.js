@@ -34,8 +34,8 @@ If you're unsure about who the Pokémon is or need details, call the function 'g
     ],
   });
 
-  console.log("✅ Assistant created!");
-  console.log("🆔 Assistant ID:", assistant.id);
+  console.log("Assistant created!");
+  console.log("Assistant ID:", assistant.id);
 }
 
 createAssistant().catch(console.error);

@@ -1,11 +1,11 @@
-import {EvolutionCardProps, LinkCardProps, PokemonType} from "@/types/interfaces";
+import {EvolutionCardProps, LinkCardProps} from "@/types/interfaces";
 import Link from "next/link";
 import {FaHome, FaRandom, FaSearch} from "react-icons/fa";
 import {Title} from "@/components/layout/GeneralLayout";
 
 
 export const SeeAlso: React.FC<EvolutionCardProps> = ({types}) => {
-    let url: string[] = []
+    const url: string[] = []
     if (types) {
         {
             types.map((item) => (

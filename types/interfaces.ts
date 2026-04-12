@@ -4,6 +4,9 @@ export interface Pokemon {
     name: string;
     url?: string;
     viewedAt?: number;
+    id?: number;
+    types?: PokemonType[];
+    base_experience?: number;
 }
 
 export interface PokemonListResponse {
@@ -119,7 +122,7 @@ export interface ApiResponse<T> {
 
 export interface ApiClientOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
-    body?: any;
+    body?: unknown;
     headers?: Record<string, string>;
 }
 
@@ -155,17 +158,11 @@ export interface SearchInputProps {
     showDropdown: boolean;
     setShowDropdown: (show: boolean) => void;
     highlightedIndex: number;
-    setHighlightedIndex: (index: number) => void;
+    setHighlightedIndex: React.Dispatch<React.SetStateAction<number>>;
     noMatchesMessage: string | null;
     setNoMatchesMessage: (message: string | null) => void;
     filteredDropdown: Pokemon[];
     handleDropdownSelect: (pokemon: Pokemon) => void;
-}
-
-export interface ActionButtonsProps {
-    goToHome: () => void;
-    toListRecentlyViewed: () => void;
-    showAssistantChat: () => void;
 }
 
 export interface SelectedTypesProps {
@@ -192,5 +189,3 @@ export interface UsePokemonListProps {
     initialPage?: number; // Add this optional parameter
 
 }
-
-

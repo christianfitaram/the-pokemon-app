@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { PokemonsToDisplayProps } from "@/types/interfaces";
 import PokemonCard from "./PokemonCard";
 import { PaginationBar } from "@/components/layout/Pagination";
@@ -9,12 +8,9 @@ import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 
 export const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
                                                                         pokemons,
-                                                                        prevUrl,
-                                                                        nextUrl,
                                                                         loading,
                                                                         isSearchOn,
                                                                         fetchPokemon,
-                                                                        fetchLastPage,
                                                                         currentPage,
                                                                         setCurrentPage,
                                                                         pending = false, // NEW

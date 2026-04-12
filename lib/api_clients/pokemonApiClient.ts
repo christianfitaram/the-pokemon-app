@@ -1,18 +1,17 @@
 // lib/api_clients/pokemonApiClient.ts
 import { EvolutionNode } from "@/types/evolutionTypes";
-import { ApiResponse, Pokemon, PokemonDetails, PokemonListResponse, ApiClientOptions } from "@/types/interfaces";
+import { ApiResponse, ChatMessage, Pokemon, PokemonDetails, PokemonListResponse, ApiClientOptions } from "@/types/interfaces";
 
 export class ApiClient {
     private static getHeaders(customHeaders?: Record<string, string>) {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
-            'x-frontend-secret': process.env.NEXT_PUBLIC_FRONTEND_SECRET || '',
             ...customHeaders,
         };
         return headers;
     }
 
-  private static async request<T = any>(
+  private static async request<T = unknown>(
     endpoint: string,
     options: ApiClientOptions = {}
   ): Promise<T> {
@@ -35,17 +34,17 @@ export class ApiClient {
     }
 
     if (response.headers.get('content-type')?.includes('text/event-stream')) {
-      return response as any;
+      return response as unknown as T;
     }
 
     return response.json();
   }
 
-  static async get<T = any>(endpoint: string, headers?: Record<string, string>): Promise<T> {
+  static async get<T = unknown>(endpoint: string, headers?: Record<string, string>): Promise<T> {
     return this.request<T>(endpoint, { method: 'GET', headers });
   }
 
-  static async post<T = any>(endpoint: string, body: any, headers?: Record<string, string>): Promise<T> {
+  static async post<T = unknown>(endpoint: string, body: unknown, headers?: Record<string, string>): Promise<T> {
     return this.request<T>(endpoint, { method: 'POST', body, headers });
   }
 }
@@ -53,7 +52,7 @@ export class ApiClient {
 export class PokemonApiClient {
   static async getPokemonByName(name: string): Promise<ApiResponse<PokemonDetails>> {
     try {
-      const data = await ApiClient.get(`/pokemons/details/${name}`);
+      const data = await ApiClient.get<PokemonDetails>(`/pokemons/details/${name}`);
       return { success: true, data };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -62,7 +61,7 @@ export class PokemonApiClient {
 
   static async getPokemonsByType(type: string): Promise<ApiResponse<Pokemon[]>> {
     try {
-      const data = await ApiClient.get(`/pokemons/get-by-type/${type}`);
+      const data = await ApiClient.get<Pokemon[]>(`/pokemons/get-by-type/${type}`);
       return { success: true, data };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -71,7 +70,7 @@ export class PokemonApiClient {
 
   static async getAllPokemons(): Promise<ApiResponse<Pokemon[]>> {
     try {
-      const data = await ApiClient.get('/pokemons/get-all');
+      const data = await ApiClient.get<ApiResponse<Pokemon[]>>('/pokemons/get-all');
       return  data ;
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -80,7 +79,7 @@ export class PokemonApiClient {
 
   static async getPokemonsFirstPage(): Promise<ApiResponse<PokemonListResponse>> {
     try {
-      const data = await ApiClient.get('/pokemons/first-page');
+      const data = await ApiClient.get<PokemonListResponse>('/pokemons/first-page');
       return { success: true, data };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -89,16 +88,16 @@ export class PokemonApiClient {
 
   static async getPokemonsLastPage(n: string): Promise<ApiResponse<PokemonListResponse>> {
     try {
-      const data = await ApiClient.get(`/pokemons/last-page/${n}`);
+      const data = await ApiClient.get<PokemonListResponse>(`/pokemons/last-page/${n}`);
       return { success: true, data };
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
   }
 
-  static async getPokemonsCustomPage(urlParameter: string): Promise<ApiResponse<PokemonListResponse>> {
+  static async getPokemonsCustomPage(offset: number, limit: number = 24): Promise<ApiResponse<PokemonListResponse>> {
     try {
-      const data = await ApiClient.post('/pokemons/custom-page', { url: urlParameter });
+      const data = await ApiClient.post<PokemonListResponse>('/pokemons/custom-page', { offset, limit });
       return { success: true, data };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -107,7 +106,7 @@ export class PokemonApiClient {
 
   static async getRandomPokemon(): Promise<ApiResponse<Pokemon>> {
     try {
-      const data = await ApiClient.get('/pokemons/random');
+      const data = await ApiClient.get<Pokemon>('/pokemons/random');
       return { success: true, data };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -116,7 +115,7 @@ export class PokemonApiClient {
 
   static async getPokemonEvolutionChain(name: string): Promise<ApiResponse<EvolutionNode>> {
     try {
-      const data = await ApiClient.get(`/pokemons/evolution-chain/${name}`);
+      const data = await ApiClient.get<EvolutionNode>(`/pokemons/evolution-chain/${name}`);
       return { success: true, data };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -125,8 +124,8 @@ export class PokemonApiClient {
 }
 
 export const chatApi = {
-  assistant: (chatHistory: any[]) => 
-    ApiClient.post('/assistance', { chatHistory }),
-  roleplay: (message: string, pokemon: string, chatHistory: any[]) =>
-    ApiClient.post('/chat-roleplay', { message, pokemon, chatHistory }),
+  assistant: (chatHistory: ChatMessage[]) =>
+    ApiClient.post<Response>('/assistance', { chatHistory }),
+  roleplay: (message: string, pokemon: string, chatHistory: ChatMessage[]) =>
+    ApiClient.post<Response>('/chat-roleplay', { message, pokemon, chatHistory }),
 };

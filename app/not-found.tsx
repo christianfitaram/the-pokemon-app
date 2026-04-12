@@ -6,12 +6,12 @@ function NotFound() {
   return (
     <MainLayout>
       <div className="flex flex-col flex-1 gap-6 items-center justify-center">
-        <div className="flex flex-row gap-10">
+        <div className="flex flex-col lg:flex-row gap-10 items-center px-4">
           <Image
-            src="../assets/img/psyduck.svg"
+            src="/assets/img/psyduck.svg"
             alt="not-found"
-            width={300} // Width of the image
-            height={300} // Height of the image
+            width={300}
+            height={300}
           ></Image>
           <div className="flex flex-col items-center justify-center gap-6">
             <div>

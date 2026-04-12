@@ -22,7 +22,6 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
   const [pokemon, setPokemon] = useState<PokemonDetails | null>(null);
   const [showPokemonChat, setShowPokemonChat] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
   const [uiTheme, setUItheme] = useState<uiThemePokemon>();
   const [gradientClass, setGradientClass] = useState<string | null>(null);
@@ -34,7 +33,6 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
 
     const fetchPokemonDetails = async () => {
       setLoading(true);
-      setErrorMessage(null);
 
       try {
         const res = await PokemonApiClient.getPokemonByName(number);
@@ -46,21 +44,17 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
         if (res.data) {
           setPokemon(res.data);
           savePokemon(number);
-        } else {
-            console.log("No Pokémon data returned");
         }
       } catch (error) {
-        setErrorMessage((error as Error).message);
-        console.log(errorMessage);
+        console.error("Failed to fetch Pokemon details", error);
         setPokemon(null);
-        setLoading(false);
       } finally {
         setLoading(false);
       }
     };
 
     fetchPokemonDetails();
-  }, [number]);
+  }, [number, savePokemon]);
 
   //Lets passing the gradient for the background and UI elements
 
@@ -115,18 +109,20 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
           ) : (
             <div className="flex flex-col  flex-1  background-muted w-fit p-8 rounded-3xl gap-3 ">
               <div className="flex flex-row w-full items-center justify-between">
-                <div
+                <button
+                  type="button"
                   onClick={() => setShowPokemonChat(true)}
-                  className={`${gradientClass} rounded-full flex flex-row items-center px-4 cursor-pointer hover:opacity-80`}
+                  className={`${gradientClass} rounded-full flex flex-row items-center px-4 cursor-pointer hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-300`}
                 >
-                  <button
-                    className={`text-white rounded-full focus:ring-4 focus:outline-none focus:ring-blue-200  text-sm inline-flex justify-center w-fit p-2 `}
+                  <span
+                    className={`text-white rounded-full text-sm inline-flex justify-center w-fit p-2 `}
                   >
                     <FaCommentDots className="h-5 w-5" />
-                  </button>
+                  </span>
                   <span>Chat with me </span>
-                </div>
+                </button>
                 <button
+                  type="button"
                   onClick={() => router.push("/")}
                   className={`text-white rounded-full ${gradientClass} focus:ring-4 focus:outline-none focus:ring-blue-200  hover:opacity-80  text-sm inline-flex justify-center w-fit p-2 mx-2`}
                 >

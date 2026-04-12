@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Security configuration
-const ALLOWED_ORIGINS = [
+const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3000',
@@ -9,13 +9,25 @@ const ALLOWED_ORIGINS = [
   // Production domains
   'https://project1.enricfitaram.dev',
   'https://www.project1.enricfitaram.dev',
-  // Add your actual production domain here if different
 ];
-
-const FRONTEND_SECRET = process.env.FRONTEND_SECRET || 'my-super-secure-secret-key-2024';
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const SAFE_ALLOWED_ORIGINS = ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : DEFAULT_ALLOWED_ORIGINS;
 
 // Rate limiting store (in production, use Redis or similar)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+const MAX_RATE_LIMIT_KEYS = 10_000;
+
+function cleanupRateLimitStore(now: number) {
+  if (rateLimitStore.size < MAX_RATE_LIMIT_KEYS) return;
+  for (const [key, value] of rateLimitStore.entries()) {
+    if (now > value.resetTime) {
+      rateLimitStore.delete(key);
+    }
+  }
+}
 
 export function middleware(request: NextRequest) {
   // Only apply to API routes
@@ -23,21 +35,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Security check configuration
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  const hasSecret = FRONTEND_SECRET && FRONTEND_SECRET !== 'my-super-secure-secret-key-2024';
-
-  // Skip security checks in development if no secret is set
-  if (isDevelopment && !hasSecret) {
-    return NextResponse.next();
-  }
-
   // 1. Origin check
   const origin = request.headers.get('origin');
-  
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+
+  if (origin && !SAFE_ALLOWED_ORIGINS.includes(origin)) {
     return new NextResponse(
-      JSON.stringify({ error: 'Unauthorized origin', received: origin, allowed: ALLOWED_ORIGINS }),
+      JSON.stringify({ error: 'Unauthorized origin' }),
       { 
         status: 403,
         headers: { 'Content-Type': 'application/json' }
@@ -45,26 +48,15 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // 2. Custom header check
-  const frontendSecret = request.headers.get('x-frontend-secret');
-  
-  if (frontendSecret !== FRONTEND_SECRET) {
-    return new NextResponse(
-      JSON.stringify({ error: 'Invalid frontend secret', secretProvided: !!frontendSecret, secretConfigured: !!FRONTEND_SECRET }),
-      { 
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-  }
-
-  // 3. Rate limiting
-  const clientIP = request.headers.get('x-forwarded-for') || 
+  // 2. Rate limiting
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const clientIP = (forwardedFor ? forwardedFor.split(',')[0].trim() : null) ||
                    request.headers.get('x-real-ip') || 
                    'unknown';
   const now = Date.now();
+  cleanupRateLimitStore(now);
   const windowMs = 1 * 60 * 1000; // 1 minute
-  const maxRequests = 1000; // Max requests per window
+  const maxRequests = 120; // Max requests per window
 
   const clientData = rateLimitStore.get(clientIP);
   
@@ -84,12 +76,15 @@ export function middleware(request: NextRequest) {
     clientData.count++;
   }
 
-  // 4. Add security headers
+  // 3. Add security headers
   const response = NextResponse.next();
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
 
   return response;
 }

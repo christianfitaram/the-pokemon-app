@@ -1,6 +1,6 @@
 import PokemonDetailsPage from "@/components/pokemon-details/PokemonDetailsPage";
 import type { Metadata } from "next";
-import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
+import { PokemonRepository } from "@/lib/repositories/PokemonRepository";
 import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
 
 export default async function Page({
@@ -26,11 +26,8 @@ export async function generateMetadata({
   const { slug } = await params;
 
   try {
-    // Fetch Pokemon data for metadata
-    const pokemonResponse = await PokemonApiClient.getPokemonByName(slug);
-
-    if (pokemonResponse.success && pokemonResponse.data) {
-      const pokemon = pokemonResponse.data;
+    const pokemon = await PokemonRepository.getPokemonByName(slug);
+    if (pokemon) {
       const pokemonName = capitalizeFirstLetter(pokemon.name);
       const types = pokemon.types
         .map((type) => capitalizeFirstLetter(type.type.name))

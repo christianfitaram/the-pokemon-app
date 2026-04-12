@@ -1,9 +1,10 @@
 "use client";
-import {useEffect, useRef, useState} from "react";
-import {Pokemon, SearchProps, TypeApiResponse} from "@/types/interfaces";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {Pokemon, SearchProps} from "@/types/interfaces";
 import {useRecentlyViewed} from "@/hooks/useRecentlyViewed";
 import {useAllPokemonNames} from "@/hooks/useAllPokemonNames";
 import { formatURLpagination } from "@/utils/formatURLpagination";
+import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 
 import {SearchInput} from "./SearchInput";
 import {ActionButtons} from "./ActionButtons";
@@ -11,7 +12,6 @@ import {SelectMenu} from "@/components/search/SelectMenu";
 import {SelectedTypes} from "@/components/search/SelectedTypes";
 
 const Search: React.FC<SearchProps> = ({
-                                           value,
                                            onChange,
                                            setIsSearchOn,
                                            setIsUserChatting,
@@ -19,7 +19,6 @@ const Search: React.FC<SearchProps> = ({
                                            fetchPokemonRef,
                                        }) => {
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-    const [typeFilteredPokemons, setTypeFilteredPokemons] = useState<Pokemon[]>([]);
     const [selectedType, setSelectedType] = useState<string | undefined>();
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [noMatchesMessage, setNoMatchesMessage] = useState<string | null>(null);
@@ -46,10 +45,28 @@ const Search: React.FC<SearchProps> = ({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const computeIntersection = (pokemonsByType: Pokemon[][]): Pokemon[] => {
+        if (pokemonsByType.length === 0) return [];
+        return pokemonsByType.reduce((acc, current) => {
+            return acc.filter((pokemon) =>
+                current.some((p) => p.name === pokemon.name)
+            );
+        }, pokemonsByType[0]);
+    };
+
+    const fetchByTypes = useCallback(async (types: string[]) => {
+        const responses = await Promise.all(
+            types.map((type) => PokemonApiClient.getPokemonsByType(type))
+        );
+        const pokemonsByType = responses
+            .filter((response): response is { success: true; data: Pokemon[] } => !!response.success && !!response.data)
+            .map((response) => response.data);
+        return computeIntersection(pokemonsByType);
+    }, []);
+
     useEffect(() => {
         const fetchPokemonByType = async () => {
             if (selectedTypes.length === 0) {
-                setTypeFilteredPokemons([]);
                 onChange([]);
                 return;
             }
@@ -59,27 +76,8 @@ const Search: React.FC<SearchProps> = ({
                 setIsSearchOn(true);
 
                 // Fetch Pokemon for each selected type
-                const responses = await Promise.all(
-                    selectedTypes.map(type =>
-                        fetch(`https://pokeapi.co/api/v2/type/${type}`)
-                            .then(res => res.json())
-                            .then((data: TypeApiResponse) => data)
-                    )
-                );
+                const filteredPokemons = await fetchByTypes(selectedTypes);
 
-                // Get Pokemon from all selected types
-                const pokemonsByType = responses.map(response =>
-                    response.pokemon.map((p: { pokemon: Pokemon }) => p.pokemon)
-                );
-
-                // Find Pokemon that exist in all selected types (intersection)
-                const filteredPokemons = pokemonsByType.reduce((acc, current) => {
-                    return acc.filter(pokemon =>
-                        current.some(p => p.name === pokemon.name)
-                    );
-                }, pokemonsByType[0]);
-
-                setTypeFilteredPokemons(filteredPokemons);
                 onChange(filteredPokemons);
             } catch (error) {
                 console.error('Error fetching Pokemon by type:', error);
@@ -89,7 +87,7 @@ const Search: React.FC<SearchProps> = ({
         };
 
         fetchPokemonByType();
-    }, [selectedTypes, onChange, setTypeLoading, setIsSearchOn]);
+    }, [selectedTypes, onChange, setTypeLoading, setIsSearchOn, fetchByTypes]);
 
     // Other utility functions and effects...
     const handleTypeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -104,7 +102,6 @@ const Search: React.FC<SearchProps> = ({
         const updated = selectedTypes.filter((t) => t !== type);
         setSelectedTypes(updated);
         setSelectedType(undefined);
-        setTypeFilteredPokemons([]);
 
         // All types removed → restore saved page instead of resetting to first page
         if (updated.length === 0) {
@@ -135,25 +132,8 @@ const Search: React.FC<SearchProps> = ({
         try {
             setTypeLoading(true);
 
-            const responses = await Promise.all(
-                updated.map((t) =>
-                    fetch(`https://pokeapi.co/api/v2/type/${t}`)
-                        .then((res) => res.json())
-                        .then((data: TypeApiResponse) => data)
-                )
-            );
+            const filteredPokemons = await fetchByTypes(updated);
 
-            const pokemonsByType = responses.map((response) =>
-                response.pokemon.map((p) => p.pokemon)
-            );
-
-            const filteredPokemons = pokemonsByType.reduce((acc, current) => {
-                return acc.filter((pokemon) =>
-                    current.some((p) => p.name === pokemon.name)
-                );
-            }, pokemonsByType[0]);
-
-            setTypeFilteredPokemons(filteredPokemons);
             onChange(filteredPokemons);
             setIsSearchOn(true);
         } catch (error) {

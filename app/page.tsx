@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useRef, useEffect} from "react";
+import {useState, useRef} from "react";
 import Pokemons from "@/components/Pokemons";
 import Search from "@/components/search/Search";
 import AssistantChat from "@/components/chat/AssistantChat";
@@ -65,7 +65,9 @@ const HomePage: React.FC = () => {
             {!isUserChatting && (
                 <button
                     onClick={() => setIsUserChatting(true)}
-                    className="fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg"
+                    aria-label="Open assistant chat"
+                    title="Open assistant chat"
+                    className="fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 >
                     <FaRobot className="h-8 w-8"/>
                 </button>

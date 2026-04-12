@@ -64,7 +64,15 @@ const handleKeyDown = (
         setShowDropdown,
         setNoMatchesMessage,
         handleDropdownSelect
-    }: any
+    }: {
+        showDropdown: boolean;
+        filteredDropdown: Pokemon[];
+        highlightedIndex: number;
+        setHighlightedIndex: React.Dispatch<React.SetStateAction<number>>;
+        setShowDropdown: (show: boolean) => void;
+        setNoMatchesMessage: (message: string | null) => void;
+        handleDropdownSelect: (pokemon: Pokemon) => void;
+    }
 ) => {
     if (e.key === "Escape") {
         setShowDropdown(false);
@@ -168,16 +176,27 @@ const DropdownItem: React.FC<{
                 highlightedIndex === index ? "bg-blue-100" : ""
             }`}
         >
-            <span
-                data-testid={`pokemon-card-${pokemon.name}`}
-                dangerouslySetInnerHTML={{
-                    __html: pokemon.name.replace(
-                        new RegExp(searchQuery, "i"),
-                        (match) =>
-                            `<span class="font-bold text-blue-600">${match}</span>`
-                    ),
-                }}
-            />
+            <span data-testid={`pokemon-card-${pokemon.name}`}>
+                {renderHighlightedText(pokemon.name, searchQuery)}
+            </span>
         </li>
     </Link>
 );
+
+function renderHighlightedText(text: string, query: string) {
+    if (!query.trim()) return text;
+
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const start = lowerText.indexOf(lowerQuery);
+    if (start === -1) return text;
+
+    const end = start + query.length;
+    return (
+        <>
+            {text.slice(0, start)}
+            <span className="font-bold text-blue-600">{text.slice(start, end)}</span>
+            {text.slice(end)}
+        </>
+    );
+}

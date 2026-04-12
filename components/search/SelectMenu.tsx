@@ -27,10 +27,14 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
 
     return (
         <div className="flex flex-row items-center gap-4">
-            <p className="font-[family-name:var(--font-geist-mono)] text-white flex flex-col">
+            <label
+                htmlFor="pokemon-type-select"
+                className="font-[family-name:var(--font-geist-mono)] text-white flex flex-col"
+            >
                 Search by type:
-            </p>
+            </label>
             <select
+                id="pokemon-type-select"
                 onChange={handleTypeSelect}
                 name="type"
                 className="px-4 py-2 bg-gray-700 text-white rounded-md flex flex-col"
