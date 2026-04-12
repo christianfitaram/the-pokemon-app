@@ -9,7 +9,7 @@ Next.js + TypeScript app for browsing Pokemon data, viewing details/evolution ch
 - Tailwind CSS
 - Redis cache layer
 - PostgreSQL + pgvector (AI retrieval context)
-- OpenAI API
+- OpenAI API or Gemini API (OpenAI-compatible)
 - Jest (unit/regression) + Cypress (E2E)
 
 ## Main Features
@@ -46,7 +46,10 @@ npm install
 
 2. Configure environment variables (`.env`) for:
 
-- `OPENAI_API_KEY`
+- `AI_PROVIDER` (`openai` or `gemini`)
+- `OPENAI_API_KEY` (required when `AI_PROVIDER=openai`)
+- `GEMINI_API_KEY` (required when `AI_PROVIDER=gemini`)
+- Optional model overrides: `AI_CHAT_MODEL`, `AI_EMBEDDING_MODEL`, `AI_EMBEDDING_DIM`
 - `REDIS_URL`
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
 - Optional: `ALLOWED_ORIGINS`

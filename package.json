@@ -16,7 +16,9 @@
     "warm:redis": "npm run warm:cache && npm run warm:types",
     "test:security": "node scripts/test-security.js",
     "build:prod": "NODE_ENV=production next build",
-    "start:prod": "NODE_ENV=production next start"
+    "start:prod": "NODE_ENV=production next start",
+    "init:db": "node scripts/init-pgvector-db.js",
+    "migrate:height-weight": "node scripts/migrate-height-weight.js"
   },
   "dependencies": {
     "dotenv": "^17.2.1",

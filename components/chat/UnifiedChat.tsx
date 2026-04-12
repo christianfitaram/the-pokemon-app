@@ -6,6 +6,20 @@ import TypingIndicator from "./TypingIndicator";
 import { motion } from "framer-motion";
 import {chatApi} from "@/lib/api_clients/pokemonApiClient";
 import Image from "next/image";
+import { marked } from "marked";
+
+function toSafeMarkdownHtml(content: string): string {
+  const escaped = content
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  return marked.parse(escaped, {
+    gfm: true,
+    breaks: true,
+    async: false,
+  }) as string;
+}
 
 export default function UnifiedChat({
   chatType,
@@ -234,9 +248,16 @@ export default function UnifiedChat({
                   msg.role === "user"
                     ? "bg-bubble-1 text-right"
                     : "bg-bubble-2 text-left"
-                } w-fit max-w-[85%] sm:max-w-[80%] md:max-w-[75%] inline-block px-3 py-2 rounded-lg font-[family-name:var(--font-geist-mono)] text-gray-200 break-words whitespace-pre-wrap`}
+                } w-fit max-w-[85%] sm:max-w-[80%] md:max-w-[75%] inline-block px-3 py-2 rounded-lg font-[family-name:var(--font-geist-mono)] text-gray-200 break-words`}
               >
-                {msg.content}
+                {msg.role === "assistant" ? (
+                  <div
+                    className="markdown-chat leading-relaxed [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:list-inside [&_ol]:list-inside [&_ul]:pl-1 [&_ol]:pl-1 [&_li]:my-0 [&_li>p]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-slate-900 [&_pre]:p-2 [&_code]:break-all"
+                    dangerouslySetInnerHTML={{ __html: toSafeMarkdownHtml(msg.content) }}
+                  />
+                ) : (
+                  <span className="whitespace-pre-wrap">{msg.content}</span>
+                )}
               </div>
             </div>
           ))}

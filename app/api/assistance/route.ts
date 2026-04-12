@@ -1,17 +1,311 @@
 import {NextRequest} from "next/server";
-import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import {pool} from "@/lib/db/pgvector";
 import formatPokemonForContext from "@/utils/formatPokemonForContextAPI";
 import { isOriginAllowed } from "@/lib/security/origin";
 import { assistanceRequestSchema } from "@/lib/validation/ai";
+import {
+    getAIClient,
+    getChatModelCandidates,
+    getEmbeddingModelCandidates,
+} from "@/lib/ai/provider";
 
-function getOpenAIClient() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-        throw new Error("OPENAI_API_KEY is not configured");
+type StatCondition = {
+    stat: string;
+    op: ">=" | "<=";
+    value: number;
+};
+
+type StructuredFilters = {
+    colors: string[];
+    types: string[];
+    habitats: string[];
+    abilities: string[];
+    stats: StatCondition[];
+    sortBy: "height_desc" | "height_asc" | "weight_desc" | "weight_asc" | null;
+};
+
+const KNOWN_COLORS = [
+    "black",
+    "blue",
+    "brown",
+    "gray",
+    "green",
+    "pink",
+    "purple",
+    "red",
+    "white",
+    "yellow",
+];
+
+const KNOWN_TYPES = [
+    "normal",
+    "fire",
+    "water",
+    "electric",
+    "grass",
+    "ice",
+    "fighting",
+    "poison",
+    "ground",
+    "flying",
+    "psychic",
+    "bug",
+    "rock",
+    "ghost",
+    "dragon",
+    "dark",
+    "steel",
+    "fairy",
+];
+
+const KNOWN_HABITATS = [
+    "cave",
+    "forest",
+    "grassland",
+    "mountain",
+    "rare",
+    "rough-terrain",
+    "sea",
+    "urban",
+    "waters-edge",
+];
+
+const STAT_ALIASES: Array<{ regex: RegExp; key: string }> = [
+    { regex: /special\s+attack|sp\.?\s*atk/i, key: "special-attack" },
+    { regex: /special\s+defense|sp\.?\s*def/i, key: "special-defense" },
+    { regex: /\bhp\b|health/i, key: "hp" },
+    { regex: /\battack\b|atk/i, key: "attack" },
+    { regex: /\bdefense\b|def/i, key: "defense" },
+    { regex: /\bspeed\b/i, key: "speed" },
+];
+
+function extractStructuredFilters(input: string): StructuredFilters {
+    const text = input.toLowerCase();
+    const colors = KNOWN_COLORS.filter((value) => new RegExp(`\\b${value}\\b`, "i").test(text));
+    const types = KNOWN_TYPES.filter((value) => new RegExp(`\\b${value}\\b`, "i").test(text));
+    const habitats = KNOWN_HABITATS.filter((value) => {
+        const relaxed = value.replace("-", "[-\\s]?");
+        return new RegExp(`\\b${relaxed}\\b`, "i").test(text);
+    });
+
+    const abilities = Array.from(
+        new Set(
+            [
+                ...text.matchAll(/(?:with|having)\s+ability\s+([a-z][a-z-]{1,40})/gi),
+                ...text.matchAll(/ability\s+([a-z][a-z-]{1,40})/gi),
+            ]
+                .map((match) => (match[1] || "").trim().toLowerCase())
+                .filter(Boolean)
+        )
+    );
+
+    const stats: StatCondition[] = [];
+    const statMatchers: Array<{ op: ">=" | "<="; regex: RegExp }> = [
+        { op: ">=", regex: /(above|over|at\s+least|greater\s+than|>=)\s*(\d{1,3})/i },
+        { op: "<=", regex: /(below|under|at\s+most|less\s+than|<=)\s*(\d{1,3})/i },
+    ];
+
+    for (const { regex: statRegex, key } of STAT_ALIASES) {
+        for (const { op, regex: cmpRegex } of statMatchers) {
+            const pattern = new RegExp(`${statRegex.source}[^0-9]{0,25}${cmpRegex.source}`, "i");
+            const found = text.match(pattern);
+            if (!found) continue;
+            const value = Number(found[found.length - 1]);
+            if (Number.isFinite(value)) {
+                stats.push({ stat: key, op, value });
+            }
+        }
     }
-    return new OpenAI({apiKey});
+
+    const sortBy = (() => {
+        if (/\btallest\b|highest\s+height|largest\s+height/.test(text)) return "height_desc" as const;
+        if (/\bshortest\b|lowest\s+height|smallest\s+height/.test(text)) return "height_asc" as const;
+        if (/\bheaviest\b|highest\s+weight/.test(text)) return "weight_desc" as const;
+        if (/\blightest\b|lowest\s+weight/.test(text)) return "weight_asc" as const;
+        return null;
+    })();
+
+    return { colors, types, habitats, abilities, stats, sortBy };
+}
+
+function hasStructuredFilters(filters: StructuredFilters): boolean {
+    return (
+        filters.colors.length > 0 ||
+        filters.types.length > 0 ||
+        filters.habitats.length > 0 ||
+        filters.abilities.length > 0 ||
+        filters.stats.length > 0 ||
+        filters.sortBy !== null
+    );
+}
+
+async function getSemanticMatches(aiClient: ReturnType<typeof getAIClient>, userMessage: string) {
+    const embedding = await createEmbeddingWithFallback(aiClient, userMessage);
+    const embeddingStr = `[${embedding.join(",")}]`;
+
+    const { rows } = await pool.query(
+        `
+            SELECT name,
+                     height_dm,
+                     weight_hg,
+                   types,
+                   abilities,
+                   stats,
+                   color,
+                   habitat,
+                   description,
+                   image,
+                   evolution_chain,
+                   evolution_tree
+            FROM pokemon_embeddings
+            ORDER BY embedding <-> $1::vector
+            LIMIT 5
+        `,
+        [embeddingStr]
+    );
+
+    return rows;
+}
+
+async function getStructuredMatches(filters: StructuredFilters, limit = 25) {
+    const conditions: string[] = [];
+    const params: Array<string[] | number | string> = [];
+    let index = 1;
+
+    if (filters.colors.length > 0) {
+        conditions.push(`lower(color) = ANY($${index}::text[])`);
+        params.push(filters.colors);
+        index += 1;
+    }
+
+    if (filters.types.length > 0) {
+        conditions.push(`types @> $${index}::text[]`);
+        params.push(filters.types);
+        index += 1;
+    }
+
+    if (filters.habitats.length > 0) {
+        conditions.push(`lower(habitat) = ANY($${index}::text[])`);
+        params.push(filters.habitats);
+        index += 1;
+    }
+
+    if (filters.abilities.length > 0) {
+        conditions.push(
+            `EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(abilities) AS a
+                WHERE lower(a->>'name') = ANY($${index}::text[])
+            )`
+        );
+        params.push(filters.abilities);
+        index += 1;
+    }
+
+    for (const stat of filters.stats) {
+        conditions.push(`COALESCE((stats ->> $${index})::int, 0) ${stat.op} $${index + 1}`);
+        params.push(stat.stat, stat.value);
+        index += 2;
+    }
+
+    if (conditions.length === 0 && !filters.sortBy) {
+        return [];
+    }
+
+    params.push(limit);
+
+    let orderBy = "name ASC";
+    if (filters.sortBy === "height_desc") orderBy = "height_dm DESC NULLS LAST, name ASC";
+    if (filters.sortBy === "height_asc") orderBy = "height_dm ASC NULLS LAST, name ASC";
+    if (filters.sortBy === "weight_desc") orderBy = "weight_hg DESC NULLS LAST, name ASC";
+    if (filters.sortBy === "weight_asc") orderBy = "weight_hg ASC NULLS LAST, name ASC";
+
+    const query = `
+        SELECT name,
+               height_dm,
+               weight_hg,
+               types,
+               abilities,
+               stats,
+               color,
+               habitat,
+               description,
+               image,
+               evolution_chain,
+               evolution_tree
+        FROM pokemon_embeddings
+         WHERE ${conditions.length > 0 ? conditions.join(" AND ") : "TRUE"}
+         ORDER BY ${orderBy}
+        LIMIT $${index}
+    `;
+
+    const { rows } = await pool.query(query, params);
+    return rows;
+}
+
+async function getExpectedEmbeddingDimension(): Promise<number | null> {
+    const result = await pool.query(
+        "SELECT vector_dims(embedding) AS dim FROM pokemon_embeddings WHERE embedding IS NOT NULL LIMIT 1"
+    );
+    const raw = result.rows[0]?.dim;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function createEmbeddingWithFallback(aiClient: ReturnType<typeof getAIClient>, input: string) {
+    const expectedDim = await getExpectedEmbeddingDimension();
+    const models = getEmbeddingModelCandidates();
+    let lastError: string | null = null;
+
+    for (const model of models) {
+        try {
+            const response = await aiClient.embeddings.create({ input, model });
+            const vector = response.data[0]?.embedding;
+            if (!Array.isArray(vector) || vector.length === 0) {
+                lastError = `Model ${model} returned an empty embedding vector`;
+                continue;
+            }
+
+            if (expectedDim && vector.length !== expectedDim) {
+                lastError = `Model ${model} returned dimension ${vector.length}, expected ${expectedDim} from table`;
+                continue;
+            }
+
+            return vector;
+        } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+        }
+    }
+
+    throw new Error(
+        `Unable to generate embeddings with configured provider/models. Last error: ${lastError ?? "unknown"}`
+    );
+}
+
+async function createChatStreamWithFallback(
+    aiClient: ReturnType<typeof getAIClient>,
+    messages: ChatCompletionMessageParam[]
+) {
+    const models = getChatModelCandidates();
+    let lastError: string | null = null;
+
+    for (const model of models) {
+        try {
+            return await aiClient.chat.completions.create({
+                model,
+                messages,
+                stream: true,
+                temperature: 0.3,
+            });
+        } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+        }
+    }
+
+    throw new Error(
+        `Unable to generate chat completion with configured provider/models. Last error: ${lastError ?? "unknown"}`
+    );
 }
 
 export async function POST(req: NextRequest) {
@@ -41,35 +335,18 @@ export async function POST(req: NextRequest) {
 
     const { chatHistory: safeChatHistory } = parsedBody.data;
     const userMessage = safeChatHistory.at(-1)?.content || "Find a Pokémon";
-    const openai = getOpenAIClient();
+    const aiClient = getAIClient();
 
-    // Step 1: Embed the user query
-    const embeddingResponse = await openai.embeddings.create({
-        input: userMessage,
-        model: "text-embedding-3-small",
-    });
-    const embedding = embeddingResponse.data[0].embedding;
-    const embeddingStr = `[${embedding.join(",")}]`;
+    // Step 1: Prefer structured retrieval for characteristic queries; fallback to semantic retrieval.
+    const structuredFilters = extractStructuredFilters(userMessage);
+    const usedStructured = hasStructuredFilters(structuredFilters);
+    const pokemons = usedStructured
+        ? await getStructuredMatches(structuredFilters)
+        : await getSemanticMatches(aiClient, userMessage);
 
-    // Step 2: Query the most similar Pokémon from pgvector
-    const {rows: pokemons} = await pool.query(
-        `
-            SELECT name,
-                   types,
-                   abilities,
-                   stats,
-                   color,
-                   habitat,
-                   description,
-                   image,
-                   evolution_chain,
-                   evolution_tree
-            FROM pokemon_embeddings
-            ORDER BY embedding <-> $1::vector
-    LIMIT 5
-        `,
-        [embeddingStr]
-    );
+    const finalPokemons = pokemons.length === 0 && usedStructured
+        ? await getSemanticMatches(aiClient, userMessage)
+        : pokemons;
 
     // Step 3: Compose the assistant's understanding with RAG context
     const messages: ChatCompletionMessageParam[] = [
@@ -78,10 +355,9 @@ export async function POST(req: NextRequest) {
             content: "You are a helpful assistant specialized in Pokémon knowledge. Use the provided context to answer user questions with accurate, relevant Pokémon matches.",
         },
         {
-            role: "function",
-            name: "retrievedPokemonContext",
-            content: pokemons.length
-                ? pokemons.map((p) => formatPokemonForContext(p)).join("\n\n")
+            role: "system",
+            content: finalPokemons.length
+                ? `Retrieved Pokemon context (${usedStructured ? "structured-first" : "semantic"}):\n\n${finalPokemons.map((p) => formatPokemonForContext(p)).join("\n\n")}`
                 : "No matching Pokémon found.",
 
         },
@@ -96,12 +372,7 @@ export async function POST(req: NextRequest) {
     ];
 
     // Step 4: Stream GPT-4o-mini response
-    const stream = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages,
-        stream: true,
-        temperature: 0.3,
-    });
+    const stream = await createChatStreamWithFallback(aiClient, messages);
 
     const encoder = new TextEncoder();
 

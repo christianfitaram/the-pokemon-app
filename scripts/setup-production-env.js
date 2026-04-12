@@ -31,6 +31,14 @@ ALLOWED_ORIGINS=${allowedOrigins.join(',')}
 # OpenAI
 OPENAI_API_KEY=replace-with-real-openai-key
 
+# AI Provider (openai or gemini)
+AI_PROVIDER=gemini
+GEMINI_API_KEY=replace-with-real-gemini-key
+# Optional model overrides
+# AI_CHAT_MODEL=gemini-2.0-flash
+# AI_EMBEDDING_MODEL=text-embedding-004
+# AI_EMBEDDING_DIM=768
+
 # Redis
 # REDIS_URL=redis://localhost:6379
 

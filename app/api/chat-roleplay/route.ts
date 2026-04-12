@@ -1,6 +1,5 @@
 import {NextRequest} from "next/server";
 import { pool } from "@/lib/db/pgvector";
-import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { isOriginAllowed } from "@/lib/security/origin";
 import {
@@ -8,6 +7,72 @@ import {
     roleplayRequestSchema,
     roleplayToolArgsSchema,
 } from "@/lib/validation/ai";
+import { getAIClient, getChatModelCandidates } from "@/lib/ai/provider";
+
+type RoleplayTool = {
+    type: "function";
+    function: {
+        name: string;
+        description: string;
+        parameters: {
+            type: "object";
+            properties: Record<string, { type: string; description: string }>;
+            required: string[];
+        };
+    };
+};
+
+async function createChatCompletionWithFallback(
+    aiClient: ReturnType<typeof getAIClient>,
+    messages: ChatCompletionMessageParam[],
+    options?: {
+        tools?: RoleplayTool[];
+        tool_choice?: "auto";
+    }
+) {
+    const models = getChatModelCandidates();
+    let lastError: string | null = null;
+
+    for (const model of models) {
+        try {
+            return await aiClient.chat.completions.create({
+                model,
+                messages,
+                ...options,
+            });
+        } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+        }
+    }
+
+    throw new Error(
+        `Unable to generate chat completion with configured provider/models. Last error: ${lastError ?? "unknown"}`
+    );
+}
+
+async function createChatStreamWithFallback(
+    aiClient: ReturnType<typeof getAIClient>,
+    messages: ChatCompletionMessageParam[]
+) {
+    const models = getChatModelCandidates();
+    let lastError: string | null = null;
+
+    for (const model of models) {
+        try {
+            return await aiClient.chat.completions.create({
+                model,
+                messages,
+                stream: true,
+            });
+        } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+        }
+    }
+
+    throw new Error(
+        `Unable to generate chat stream with configured provider/models. Last error: ${lastError ?? "unknown"}`
+    );
+}
 
 
 async function getPokemonByNormalizedName(pokemonName: string) {
@@ -39,14 +104,6 @@ async function getPokemonByNormalizedName(pokemonName: string) {
     return rows[0];
 }
 
-function getOpenAIClient() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-        throw new Error("OPENAI_API_KEY is not configured");
-    }
-    return new OpenAI({apiKey});
-}
-
 export async function POST(req: NextRequest) {
     const origin = req.headers.get("origin");
     if (!origin || !isOriginAllowed(origin)) {
@@ -75,7 +132,7 @@ export async function POST(req: NextRequest) {
     const safeMessage = parsedBody.data.message;
     const safePokemon = normalizePokemonName(parsedBody.data.pokemon);
     const safeChatHistory = parsedBody.data.chatHistory;
-    const openai = getOpenAIClient();
+    const aiClient = getAIClient();
 
     const messages: ChatCompletionMessageParam[] = [
         {
@@ -91,9 +148,7 @@ export async function POST(req: NextRequest) {
     ];
 
     // First call to check if function should be called
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages,
+    const response = await createChatCompletionWithFallback(aiClient, messages, {
         tools: [
             {
                 type: "function",
@@ -190,18 +245,19 @@ export async function POST(req: NextRequest) {
         const newMessages: ChatCompletionMessageParam[] = [
             ...messages,
             {
-                role: "function",
-                name: "getPokemonInfo",
+                role: "assistant",
+                content: null,
+                tool_calls: messageResponse.tool_calls,
+            },
+            {
+                role: "tool",
+                tool_call_id: toolCall.id,
                 content: JSON.stringify(summary),
             },
         ];
 
         // Second call with streaming for final assistant response
-        const stream = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: newMessages,
-            stream: true,
-        });
+        const stream = await createChatStreamWithFallback(aiClient, newMessages);
 
         const encoder = new TextEncoder();
 
@@ -227,11 +283,7 @@ export async function POST(req: NextRequest) {
         });
     } else {
         // No function call, stream normal chat response
-        const stream = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages,
-            stream: true,
-        });
+        const stream = await createChatStreamWithFallback(aiClient, messages);
 
         const encoder = new TextEncoder();
 

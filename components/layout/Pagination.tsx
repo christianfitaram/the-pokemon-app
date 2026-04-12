@@ -39,19 +39,20 @@ export function PaginationBar({
 
     // Ensure current page is visible in current batch
     useEffect(() => {
+        // Recenter only when page or viewport batch size changes.
+        // Do not recenter on manual batch browsing (<< / >> clicks).
         const start = Math.floor(safeCurrent / batchSize) * batchSize;
-        if (start !== batchStart) {
-            setBatchStart(start);
-        }
-    }, [safeCurrent, batchSize, batchStart]);
+        setBatchStart(start);
+    }, [safeCurrent, batchSize]);
 
     const batchEnd = Math.min(batchStart + batchSize, safeTotal);
 
     const goToBatch = (direction: 'prev' | 'next') => {
+        const lastBatchStart = Math.max(0, Math.floor((safeTotal - 1) / batchSize) * batchSize);
         const newStart =
             direction === 'prev'
                 ? Math.max(0, batchStart - batchSize)
-                : Math.min(safeTotal - batchSize, batchStart + batchSize);
+                : Math.min(lastBatchStart, batchStart + batchSize);
         setBatchStart(newStart);
     };
 
