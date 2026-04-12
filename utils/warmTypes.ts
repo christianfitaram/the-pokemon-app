@@ -1,5 +1,4 @@
 import { createClient } from "redis";
-import fetch from "node-fetch";
 import "dotenv/config";
 
 const redis = createClient({ url: process.env.REDIS_URL || "redis://localhost:6379" });

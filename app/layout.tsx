@@ -1,18 +1,40 @@
 import type {Metadata} from "next";
 import Link from "next/link";
-import {Inter, Geist, Geist_Mono} from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const inter = Inter({subsets: ["latin"]});
-
-const geistSans = Geist({
+const appSans = localFont({
+    src: [
+        {
+            path: "../public/assets/font/CentraNo2-Book.ttf",
+            weight: "400",
+            style: "normal",
+        },
+        {
+            path: "../public/assets/font/CentraNo2-Medium.ttf",
+            weight: "500",
+            style: "normal",
+        },
+        {
+            path: "../public/assets/font/CentraNo2-Bold.ttf",
+            weight: "700",
+            style: "normal",
+        },
+    ],
     variable: "--font-geist-sans",
-    subsets: ["latin"],
+    display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const appMono = localFont({
+    src: [
+        {
+            path: "../public/assets/font/CentraNo2-Medium.ttf",
+            weight: "500",
+            style: "normal",
+        },
+    ],
     variable: "--font-geist-mono",
-    subsets: ["latin"],
+    display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -33,7 +55,7 @@ export default function RootLayout({
         <html lang="en">
         <body
             suppressHydrationWarning={true}
-            className={`${geistSans.variable} ${geistMono.variable} ${inter.className}  background-default bg-gray-100`}
+            className={`${appSans.variable} ${appMono.variable} background-default bg-gray-100`}
         >
         <nav>
             <h1 className="text-2xl text-white">

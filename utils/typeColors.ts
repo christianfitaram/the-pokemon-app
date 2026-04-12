@@ -90,7 +90,7 @@ export const  typeGradients: { [key: string]: string } = {
     bug: "from-lime-400 to-green-600",
     ghost: "from-purple-600 to-indigo-900",
     steel: "from-gray-500 to-gray-900",
-    ground: "from-yellow-700 to-brown-800",
+    ground: "from-yellow-700 to-amber-800",
     fighting: "from-red-600 to-red-900",
     poison: "from-purple-500 to-purple-800",
     flying: "from-blue-300 to-indigo-500",

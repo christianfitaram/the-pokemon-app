@@ -1,7 +1,13 @@
 import {NextRequest} from "next/server";
 import { pool } from "@/lib/db/pgvector";
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { isOriginAllowed } from "@/lib/security/origin";
+import {
+    normalizePokemonName,
+    roleplayRequestSchema,
+    roleplayToolArgsSchema,
+} from "@/lib/validation/ai";
 
 
 async function getPokemonByNormalizedName(pokemonName: string) {
@@ -50,19 +56,37 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const {message, pokemon, chatHistory} = await req.json();
-    const safeMessage = typeof message === "string" ? message : "";
-    const safePokemon = typeof pokemon === "string" ? pokemon : "";
-    const safeChatHistory = Array.isArray(chatHistory) ? chatHistory : [];
+    const rawBody = await req.json().catch(() => null);
+    if (!rawBody) {
+        return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const parsedBody = roleplayRequestSchema.safeParse(rawBody);
+    if (!parsedBody.success) {
+        return Response.json(
+            {
+                error: "Invalid request body",
+                details: parsedBody.error.flatten(),
+            },
+            { status: 400 }
+        );
+    }
+
+    const safeMessage = parsedBody.data.message;
+    const safePokemon = normalizePokemonName(parsedBody.data.pokemon);
+    const safeChatHistory = parsedBody.data.chatHistory;
     const openai = getOpenAIClient();
 
-    const messages = [
+    const messages: ChatCompletionMessageParam[] = [
         {
             role: "system",
             content:
                 "You are a Pokémon who talks in the first person. Use the function getPokemonInfo to get data.",
         },
-        ...safeChatHistory,
+        ...safeChatHistory.map((message) => ({
+            role: message.role,
+            content: message.content,
+        })),
         {role: "user", content: safeMessage},
     ];
 
@@ -93,16 +117,30 @@ export async function POST(req: NextRequest) {
     const messageResponse = response.choices[0].message;
 
     if (messageResponse.tool_calls?.length) {
-        // If function call detected
         const toolCall = messageResponse.tool_calls[0];
-        const funcArgs = JSON.parse(toolCall.function.arguments);
-        const pokeName = funcArgs.name || safePokemon;
+        let pokeName = safePokemon;
+        const rawToolArgs = toolCall.function.arguments;
+        const parsedToolArgs = roleplayToolArgsSchema.safeParse(
+            (() => {
+                try {
+                    return JSON.parse(rawToolArgs);
+                } catch {
+                    return null;
+                }
+            })()
+        );
+        if (parsedToolArgs.success) {
+            pokeName = normalizePokemonName(parsedToolArgs.data.name);
+        }
+        if (!pokeName) {
+            return Response.json({ error: "Pokemon name is required" }, { status: 400 });
+        }
 
         const pokeRes = await fetch(
-            `https://pokeapi.co/api/v2/pokemon/${pokeName.toLowerCase()}`
+            `https://pokeapi.co/api/v2/pokemon/${pokeName}`
         );
         const specieRes = await fetch(
-            `https://pokeapi.co/api/v2/pokemon-species/${pokeName.toLowerCase()}`
+            `https://pokeapi.co/api/v2/pokemon-species/${pokeName}`
         );
         if (!pokeRes.ok) {
             return new Response(
@@ -149,7 +187,7 @@ export async function POST(req: NextRequest) {
             evolution_tree: evolutionTreeSentence,
         };
         // Add function response message to messages array
-        const newMessages = [
+        const newMessages: ChatCompletionMessageParam[] = [
             ...messages,
             {
                 role: "function",

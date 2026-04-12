@@ -1,8 +1,10 @@
 import {NextRequest} from "next/server";
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import {pool} from "@/lib/db/pgvector";
 import formatPokemonForContext from "@/utils/formatPokemonForContextAPI";
 import { isOriginAllowed } from "@/lib/security/origin";
+import { assistanceRequestSchema } from "@/lib/validation/ai";
 
 function getOpenAIClient() {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -21,8 +23,23 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const {chatHistory} = await req.json();
-    const safeChatHistory = Array.isArray(chatHistory) ? chatHistory : [];
+    const rawBody = await req.json().catch(() => null);
+    if (!rawBody) {
+        return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const parsedBody = assistanceRequestSchema.safeParse(rawBody);
+    if (!parsedBody.success) {
+        return Response.json(
+            {
+                error: "Invalid request body",
+                details: parsedBody.error.flatten(),
+            },
+            { status: 400 }
+        );
+    }
+
+    const { chatHistory: safeChatHistory } = parsedBody.data;
     const userMessage = safeChatHistory.at(-1)?.content || "Find a Pokémon";
     const openai = getOpenAIClient();
 
@@ -55,7 +72,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Step 3: Compose the assistant's understanding with RAG context
-    const messages = [
+    const messages: ChatCompletionMessageParam[] = [
         {
             role: "system",
             content: "You are a helpful assistant specialized in Pokémon knowledge. Use the provided context to answer user questions with accurate, relevant Pokémon matches.",
@@ -68,7 +85,10 @@ export async function POST(req: NextRequest) {
                 : "No matching Pokémon found.",
 
         },
-        ...safeChatHistory,
+        ...safeChatHistory.map((message) => ({
+            role: message.role,
+            content: message.content,
+        })),
         {
             role: "user",
             content: userMessage,

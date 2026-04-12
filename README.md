@@ -1,134 +1,122 @@
+# The Pokemon App
 
-# Pokemon List Application
+Next.js + TypeScript app for browsing Pokemon data, viewing details/evolution chains, type-based discovery, and AI-assisted interactions.
 
-A React application that displays Pokemon using the PokeAPI, featuring list/grid views and state persistence.
+## Tech Stack
 
-## Requirements
+- Next.js 15
+- React 18 + TypeScript
+- Tailwind CSS
+- Redis cache layer
+- PostgreSQL + pgvector (AI retrieval context)
+- OpenAI API
+- Jest (unit/regression) + Cypress (E2E)
 
-- Node.js 18+
-- npm 9+
+## Main Features
 
-## Technologies Used
+- Paginated Pokemon catalog with list/grid toggle and persisted UI preferences
+- Pokemon details page with stats, themed UI, and evolution chain
+- Type filtering and multi-type intersection
+- Random Pokemon route
+- AI assistant route and Pokemon roleplay route (streaming responses)
+- API security middleware (origin checks, rate limiting, security headers)
+- Multi-layer caching (Redis + bounded in-memory fallback)
 
-- React with Next.js 15.2.4
-- TypeScript 5.8.3
-- TailwindCSS 3.4.1 for styling
-- Cypress 14.5.4 for E2E testing
+## Scripts
 
-## Features
+- `npm run dev` - start development server
+- `npm run build` - production build
+- `npm run start` - run production server
+- `npm run lint` - ESLint checks
+- `npm run typecheck` - TypeScript checks
+- `npm test` - Jest regression/unit tests
+- `npm run test:e2e` - Cypress end-to-end tests
+- `npm run warm:cache` - warm Pokemon cache entries
+- `npm run warm:types` - warm type endpoint cache entries
+- `npm run warm:redis` - run both warm scripts
+- `npm run test:security` - security script checks
 
-### View Toggle
-- Switch between list and grid views
-- Responsive grid layout:
-    - Desktop: 4 columns
-    - Tablet: 3 columns
-    - Mobile: 2 columns
-- View preference and number of page persists between sessions thanks to a custom hook and localstorage.
+## Setup
 
-### Pokemon Details
-- Accessible via `/pokemon/{id}` route
-- Displays Pokemon name and image
-- Back navigation preserves list state:
-    - Maintains current page
-    - Keeps selected view type (list/grid)
+1. Install dependencies
 
-### Testing
-End-to-end tests implemented with Cypress, covering:
-- Search functionality
-- Pokemon details navigation
-- View toggle behavior
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-```
-2. Install dependencies:
 ```bash
 npm install
 ```
-3. Start the development server:
+
+2. Configure environment variables (`.env`) for:
+
+- `OPENAI_API_KEY`
+- `REDIS_URL`
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+- Optional: `ALLOWED_ORIGINS`
+
+3. Run locally
+
 ```bash
 npm run dev
 ```
-4. Run tests:
-```bash
-cypress run
+
+## API Contract
+
+Pokemon endpoints follow a unified response shape:
+
+```json
+{
+  "success": true,
+  "data": {}
+}
 ```
 
-## API
+Error shape:
 
-The application uses the [PokeAPI](https://pokeapi.co/) for Pokemon data, this public endpoints are managed internally in the own project API. There are rules of rate limiting and redis cache:
-- List endpoint: `https://pokeapi.co/api/v2/pokemon`
-- Details endpoint: `https://pokeapi.co/api/v2/pokemon/{id}`
-  
-- (Among others)
-
-## Main Project Structure
-
+```json
+{
+  "success": false,
+  "error": "message"
+}
 ```
+
+## Testing
+
+- Jest suite covers regression risks introduced during hardening:
+  - AI origin guards
+  - middleware origin enforcement
+  - Pokemon API response contract
+  - random endpoint single-attempt behavior
+  - bounded in-memory cache
+  - list/pagination fetch behavior
+  - PokemonCard no per-card fetch fallback
+- Cypress keeps user-level E2E coverage.
+
+## Project Structure
+
+```text
 the-pokemon-app/
-├── app/                                    # Next.js app directory
-│   ├── api/                                # API routes (protected)
-│   │   ├── assistance/                     # AI assistant chat
-│   │   ├── chat/                           # Chat endpoints
-│   │   ├── chat-roleplay/                  # Pokemon roleplay
-│   │   └── pokemons/                       # Pokemon data endpoints         
-│   ├── pokemon/                            # Pokemon detail pages
-│   │   ├─[slug]                            # Route to /pokemon/....
-│   └── ...                                 # Other pages
-├── components/                             # React components
-│   │   ├── chat/                           # Chat components
-│   │   ├── pokemon-details/                # Pokemon detail components
-│   │   └── ...                             # Other UI components
-├── cypress/                                # React components
-│   │   ├── e2e/                            # e2e test
-│   │       ├── pokemon-search.cy.ts/ 
-│   │   └── ...
-├── hooks/                                  # Custom React hooks
-├── lib/                                    # Utility libraries
-│   ├── api_clients/                        # API client classes
-│   ├── db/                                 # Database utilities
-│   ├── repositories/                       # Data access layer
-│   └── ...                 
-├── utils/                                  # Helper functions
-├── types/                                  # TypeScript type definitions
-├── middleware.ts                           # Security middleware
+├── app/
+│   ├── api/
+│   │   ├── assistance/
+│   │   ├── chat-roleplay/
+│   │   └── pokemons/
+│   ├── pokemon/
+│   └── pokemon-type/
+├── components/
+├── hooks/
+├── lib/
+│   ├── api_clients/
+│   ├── db/
+│   ├── repositories/
+│   ├── security/
+│   └── validation/
+├── __tests__/regression/
+├── cypress/e2e/
+├── utils/
+└── types/
 ```
-## Implementation Details
 
-### View Toggle
-- Implemented using TailwindCSS Grid
-- Responsive classes:
-  ```css
-  grid-cols-2 sm:grid-cols-3 lg:grid-cols-4
-  ```
+## Production
 
-### State Management
-- Local storage for view preference
-- URL parameters for current page
-- State preservation when navigating
-
-### Testing
-Main test scenarios:
-- Pokemon search functionality
-- Details page navigation
-
-
-## Running in Production
-
-Build and start the production server:
 ```bash
-npm run build npm start
+npm run build
+npm run start
 ```
-
-## Screenshots
-### Homepage
-![Pokemon App Screenshot](https://storage.googleapis.com/multimedia-assets/Screenshot%202025-08-14%20at%2013.15.48.png)  
-### Details page
-![Pokemon App Screenshot](https://storage.googleapis.com/multimedia-assets/Screenshot%202025-08-14%20at%2013.16.07.png)  
-### Tests
-![Pokemon App Screenshot](https://storage.googleapis.com/multimedia-assets/Screenshot%202025-08-14%20at%2013.16.55.png)  
-
-

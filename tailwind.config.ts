@@ -30,7 +30,7 @@ const gradientClasses = [
     "from-gray-500",
     "to-gray-900",
     "from-yellow-700",
-    "to-brown-800", // ⛔ NOTE: "brown-800" is not in default Tailwind
+    "to-amber-800",
     "from-red-600",
     "to-red-900",
     "from-purple-500",

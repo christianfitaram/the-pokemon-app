@@ -1,5 +1,4 @@
 import { createClient } from "redis";
-import fetch from "node-fetch";
 import "dotenv/config";
 
 interface PokemonListResponse {
