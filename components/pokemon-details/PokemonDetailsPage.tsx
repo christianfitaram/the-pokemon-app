@@ -17,9 +17,11 @@ import Image from "next/image";
 import { SeeAlso } from "./SeeAlso";
 import { MainLayout } from "@/components/layout/GeneralLayout";
 import {getURLimg} from "@/utils/getURLimg";
+import { EnrichedPokemonData } from "@/types/enrichedPokemon";
 
 export default function PokemonDetailsClient({ number }: { number: string}) {
   const [pokemon, setPokemon] = useState<PokemonDetails | null>(null);
+  const [enrichedPokemon, setEnrichedPokemon] = useState<EnrichedPokemonData | null>(null);
   const [showPokemonChat, setShowPokemonChat] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
@@ -33,6 +35,7 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
 
     const fetchPokemonDetails = async () => {
       setLoading(true);
+      setEnrichedPokemon(null);
 
       try {
         const res = await PokemonApiClient.getPokemonByName(number);
@@ -44,10 +47,18 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
         if (res.data) {
           setPokemon(res.data);
           savePokemon({ name: res.data.name, id: res.data.id });
+
+          const enrichedResponse = await PokemonApiClient.getEnrichedPokemonById(res.data.id);
+          if (enrichedResponse.success && enrichedResponse.data) {
+            setEnrichedPokemon(enrichedResponse.data);
+          } else {
+            setEnrichedPokemon(null);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch Pokemon details", error);
         setPokemon(null);
+        setEnrichedPokemon(null);
       } finally {
         setLoading(false);
       }
@@ -152,6 +163,21 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
               <p className="text-gray-200">
                 Base experience: {pokemon.base_experience}
               </p>
+              {enrichedPokemon?.species.flavorText && (
+                <p className="text-gray-200 text-sm leading-relaxed">
+                  {enrichedPokemon.species.flavorText}
+                </p>
+              )}
+              {enrichedPokemon?.abilities.length ? (
+                <div className="text-gray-200 text-sm">
+                  <p className="font-semibold">Abilities</p>
+                  <p>
+                    {enrichedPokemon.abilities
+                      .map((ability) => ability.name.replace(/-/g, " "))
+                      .join(", ")}
+                  </p>
+                </div>
+              ) : null}
               <PokemonTypeList pokemon={pokemon} />
             </div>
           )}

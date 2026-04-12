@@ -1,5 +1,6 @@
 // lib/api_clients/pokemonApiClient.ts
 import { EvolutionNode } from "@/types/evolutionTypes";
+import { EnrichedPokemonData } from "@/types/enrichedPokemon";
 import { ApiResponse, ChatMessage, Pokemon, PokemonDetails, PokemonListResponse, ApiClientOptions } from "@/types/interfaces";
 
 export class ApiClient {
@@ -110,6 +111,15 @@ export class PokemonApiClient {
   static async getPokemonEvolutionChain(name: string): Promise<ApiResponse<EvolutionNode>> {
     try {
       return await ApiClient.get<ApiResponse<EvolutionNode>>(`/pokemons/evolution-chain/${name}`);
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  static async getEnrichedPokemonById(id: number, includeEncounters = false): Promise<ApiResponse<EnrichedPokemonData>> {
+    try {
+      const includeParam = includeEncounters ? "?includeEncounters=true" : "";
+      return await ApiClient.get<ApiResponse<EnrichedPokemonData>>(`/pokemons/enriched/${id}${includeParam}`);
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
