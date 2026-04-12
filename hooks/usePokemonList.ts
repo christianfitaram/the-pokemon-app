@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useCallback, useState} from "react";
 import {ApiResponse, PokemonListResponse, Pokemon, UsePokemonListProps} from "@/types/interfaces";
 import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
 
@@ -37,7 +37,7 @@ export const usePokemonList = ({
 
 
     // Unified fetch logic
-    const fetchAndHandle = async (
+    const fetchAndHandle = useCallback(async (
         fetcher: () => Promise<ApiResponse<PokemonListResponse>>
     ) => {
         try {
@@ -55,9 +55,9 @@ export const usePokemonList = ({
         } finally {
             setLoading(false);
         }
-    };
+    }, [onChange]);
 
-    const fetchPokemon = async (url?: string, isInitial: boolean = false) => {
+    const fetchPokemon = useCallback(async (url?: string, isInitial: boolean = false) => {
         if (isInitial) {
             await fetchAndHandle(() => PokemonApiClient.getPokemonsFirstPage());
             return;
@@ -78,7 +78,7 @@ export const usePokemonList = ({
         await fetchAndHandle(() =>
             PokemonApiClient.getPokemonsCustomPage(pagination.offset, pagination.limit)
         );
-    };
+    }, [fetchAndHandle]);
 
     return {
         pokemonList,

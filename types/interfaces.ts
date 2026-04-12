@@ -49,9 +49,8 @@ export interface PokemonsToDisplayProps {
     count: number;
     loading: boolean;
     isSearchOn: boolean;
-    fetchPokemon: (url?: string, isInitial?: boolean) => Promise<void>;
     currentPage: number;
-    setCurrentPage: (page: number) => void;
+    onPageChange: (page: number) => void;
     pending: boolean;
 
 }
@@ -60,9 +59,6 @@ export interface SearchProps extends ToDisplayProps {
     setIsSearchOn: (val: boolean) => void;
     setIsUserChatting: (val: boolean) => void;
     setTypeLoading: (val: boolean) => void;
-    fetchPokemonRef: React.MutableRefObject<
-        ((url?: string, isInitial?: boolean) => Promise<void>) | null
-    >;
 }
 
 export interface ToDisplayProps {
@@ -177,7 +173,6 @@ export interface TypeApiResponse {
 
 export interface DisplayPreferences {
     isListView: boolean;
-    currentPage: number;
 }
 
 export interface UsePokemonListProps {

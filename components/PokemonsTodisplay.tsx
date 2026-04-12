@@ -1,8 +1,8 @@
+import { useEffect } from "react";
 import { PokemonsToDisplayProps } from "@/types/interfaces";
 import PokemonCard from "./PokemonCard";
 import { PaginationBar } from "@/components/layout/Pagination";
 import { usePagination } from "@/hooks/usePagination";
-import { formatURLpagination } from "@/utils/formatURLpagination";
 import { Grid2x2, List } from "lucide-react";
 import { useDisplayPreferences } from "@/hooks/useDisplayPreferences";
 
@@ -11,24 +11,24 @@ export const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
                                                                         count,
                                                                         loading,
                                                                         isSearchOn,
-                                                                        fetchPokemon,
                                                                         currentPage,
-                                                                        setCurrentPage,
-                                                                        pending = false, // NEW
+                                                                        onPageChange,
+                                                                        pending = false,
                                                                     }) => {
     const { totalPages } = usePagination(count, 24);
-    const { preferences, updatePreferences } = useDisplayPreferences(currentPage);
+    const { preferences, updatePreferences } = useDisplayPreferences();
 
-    const handlePageChange = async (page: number) => {
-        try {
-            if (page >= 0 && page < totalPages) {
-                setCurrentPage(page);
-                updatePreferences({ currentPage: page });
-                const url = formatURLpagination(page, 24);
-                await fetchPokemon(url, false);
-            }
-        } catch (error) {
-            console.error('Error changing page:', error);
+    useEffect(() => {
+        if (isSearchOn) return;
+        if (totalPages <= 0) return;
+        if (currentPage >= totalPages) {
+            onPageChange(totalPages - 1);
+        }
+    }, [isSearchOn, totalPages, currentPage, onPageChange]);
+
+    const handlePageChange = (page: number) => {
+        if (page >= 0 && page < totalPages) {
+            onPageChange(page);
         }
     };
 
@@ -57,7 +57,7 @@ export const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
                 {pokemons.map((pokemon) => (
                     <PokemonCard
                         pokemonOverview={pokemon}
-                        key={pokemon.name}           // 🔑 stable key
+                        key={pokemon.name}
                         isList={preferences.isListView}
                     />
                 ))}
@@ -73,7 +73,6 @@ export const PokemonsToDisplay: React.FC<PokemonsToDisplayProps> = ({
                 </div>
             )}
 
-            {/* Soft overlay while pending – prevents layout jump */}
             {pending && (
                 <div className="flex justify-center items-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>

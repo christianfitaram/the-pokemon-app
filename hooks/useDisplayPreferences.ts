@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
 import { DisplayPreferences } from '@/types/interfaces';
 
-export const useDisplayPreferences = (initialPage: number = 0) => {
+export const useDisplayPreferences = () => {
     const [preferences, setPreferences] = useState<DisplayPreferences>({
         isListView: false,
-        currentPage: initialPage,
     });
 
     useEffect(() => {
         const storedPreferences = localStorage.getItem('pokemonDisplayPreferences');
         if (storedPreferences) {
-            setPreferences(JSON.parse(storedPreferences));
+            try {
+                const parsed = JSON.parse(storedPreferences) as Partial<DisplayPreferences>;
+                setPreferences({
+                    isListView: Boolean(parsed.isListView),
+                });
+            } catch {
+                setPreferences({ isListView: false });
+            }
         }
     }, []);
 

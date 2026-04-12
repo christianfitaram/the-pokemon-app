@@ -3,7 +3,6 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {Pokemon, SearchProps} from "@/types/interfaces";
 import {useRecentlyViewed} from "@/hooks/useRecentlyViewed";
 import {useAllPokemonNames} from "@/hooks/useAllPokemonNames";
-import { formatURLpagination } from "@/utils/formatURLpagination";
 import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
 
 import {SearchInput} from "./SearchInput";
@@ -16,7 +15,6 @@ const Search: React.FC<SearchProps> = ({
                                            setIsSearchOn,
                                            setIsUserChatting,
                                            setTypeLoading,
-                                           fetchPokemonRef,
                                        }) => {
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
     const [selectedType, setSelectedType] = useState<string | undefined>();
@@ -90,25 +88,6 @@ const Search: React.FC<SearchProps> = ({
         }
     };
 
-    const restoreSavedPage = async () => {
-        try {
-            const saved = JSON.parse(
-                localStorage.getItem("pokemonDisplayPreferences") || '{"currentPage":0}'
-            );
-            const page = saved.currentPage ?? 0;
-            const url = formatURLpagination(page, 24);
-
-            if (fetchPokemonRef.current) {
-                await fetchPokemonRef.current(url, false);
-            }
-        } catch (error) {
-            console.error("Failed to restore saved page, falling back to first page:", error);
-            if (fetchPokemonRef.current) {
-                await fetchPokemonRef.current(undefined, true);
-            }
-        }
-    };
-
     const removeType = async (type: string) => {
         const updatedTypes = selectedTypes.filter((selected) => selected !== type);
         setSelectedTypes(updatedTypes);
@@ -116,7 +95,6 @@ const Search: React.FC<SearchProps> = ({
 
         if (updatedTypes.length === 0) {
             setIsSearchOn(false);
-            await restoreSavedPage();
             onChange([]);
             return;
         }
@@ -150,10 +128,10 @@ const Search: React.FC<SearchProps> = ({
         setIsSearchOn(true);
     };
 
-    const goToHome = async () => {
+    const goToHome = () => {
         setIsSearchOn(false);
         setSelectedTypes([]);
-        await restoreSavedPage();
+        onChange([]);
     };
 
 
