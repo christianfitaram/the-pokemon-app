@@ -1,14 +1,16 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {Pokemon} from "@/types/interfaces";
 import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
 
 const MIN_QUERY_LENGTH = 2;
 const RESULTS_LIMIT = 20;
 const DEBOUNCE_MS = 150;
+const QUERY_CACHE_LIMIT = 100;
 
 export function useAllPokemonNames(searchQuery: string) {
     const [pokemonNames, setPokemonNames] = useState<Pokemon[]>([]);
     const [loading, setLoading] = useState(true);
+    const queryCacheRef = useRef<Map<string, Pokemon[]>>(new Map());
 
     useEffect(() => {
         const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -22,6 +24,12 @@ export function useAllPokemonNames(searchQuery: string) {
         let isCancelled = false;
 
         const fetchAndSetPokemonNames = async () => {
+            const cached = queryCacheRef.current.get(normalizedQuery);
+            if (cached) {
+                setPokemonNames(cached);
+                setLoading(false);
+                return;
+            }
             setLoading(true);
             try {
                 const response = await PokemonApiClient.getAllPokemons({
@@ -31,6 +39,13 @@ export function useAllPokemonNames(searchQuery: string) {
                 });
                 if (isCancelled) return;
                 if (response.success && response.data) {
+                    if (queryCacheRef.current.size >= QUERY_CACHE_LIMIT) {
+                        const oldestQuery = queryCacheRef.current.keys().next().value;
+                        if (oldestQuery) {
+                            queryCacheRef.current.delete(oldestQuery);
+                        }
+                    }
+                    queryCacheRef.current.set(normalizedQuery, response.data);
                     setPokemonNames(response.data);
                 } else {
                     setPokemonNames([]);

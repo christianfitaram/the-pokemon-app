@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
 import {ChatMessage, UnifiedChatProps} from "@/types/interfaces";
 import { FaUser, FaRobot, FaPlusCircle, FaLongArrowAltLeft } from "react-icons/fa";
@@ -9,6 +9,14 @@ import Image from "next/image";
 import { marked } from "marked";
 
 const SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"]);
+const MAX_CHAT_HISTORY_MESSAGES = 30;
+
+function trimChatHistory(messages: ChatMessage[]): ChatMessage[] {
+  if (messages.length <= MAX_CHAT_HISTORY_MESSAGES) {
+    return messages;
+  }
+  return messages.slice(-MAX_CHAT_HISTORY_MESSAGES);
+}
 
 function sanitizeMarkdownHtml(renderedHtml: string): string {
   if (typeof window === "undefined") {
@@ -76,6 +84,26 @@ function toSafeMarkdownHtml(content: string): string {
   return sanitizeMarkdownHtml(rendered);
 }
 
+const MessageBody = memo(function MessageBody({ message }: { message: ChatMessage }) {
+  const assistantHtml = useMemo(() => {
+    if (message.role !== "assistant") {
+      return null;
+    }
+    return toSafeMarkdownHtml(message.content);
+  }, [message.role, message.content]);
+
+  if (message.role === "assistant") {
+    return (
+      <div
+        className="markdown-chat leading-relaxed [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:list-inside [&_ol]:list-inside [&_ul]:pl-1 [&_ol]:pl-1 [&_li]:my-0 [&_li>p]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-slate-900 [&_pre]:p-2 [&_code]:break-all"
+        dangerouslySetInnerHTML={{ __html: assistantHtml || "" }}
+      />
+    );
+  }
+
+  return <span className="whitespace-pre-wrap">{message.content}</span>;
+});
+
 export default function UnifiedChat({
   chatType,
   pokemon,
@@ -93,10 +121,17 @@ export default function UnifiedChat({
       ? [{ role: "assistant", content: initialMessage || `Hi! I'm ${pokemon.name}, want to chat?` }]
       : []
   );
+  const emptyMessagesRef = useRef<ChatMessage[]>([]);
 
   // Use external or internal messages based on chat type
-  const messages = chatType === "assistant" ? externalMessages! : internalMessages;
-  const setMessages = chatType === "assistant" ? externalSetMessages! : setInternalMessages;
+  const messages = useMemo(
+    () => (chatType === "assistant" ? (externalMessages ?? emptyMessagesRef.current) : internalMessages),
+    [chatType, externalMessages, internalMessages]
+  );
+  const setMessages = useMemo(
+    () => (chatType === "assistant" ? (externalSetMessages ?? setInternalMessages) : setInternalMessages),
+    [chatType, externalSetMessages]
+  );
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -135,7 +170,7 @@ export default function UnifiedChat({
     abortControllerRef.current = controller;
 
     const userMessage: ChatMessage = { role: "user", content: trimmedInput };
-    const newMessages = [...messages, userMessage];
+    const newMessages = trimChatHistory([...messages, userMessage]);
     setMessages(newMessages);
     setInput("");
     setLoading(true);
@@ -172,17 +207,17 @@ export default function UnifiedChat({
 
           setMessages((msgs) => {
             if (msgs[msgs.length - 1]?.role !== "assistant") {
-              return [
+              return trimChatHistory([
                 ...msgs,
                 { role: "assistant", content: assistantMessage },
-              ];
+              ]);
             }
             const updated = [...msgs];
             updated[updated.length - 1] = {
               role: "assistant",
               content: assistantMessage,
             };
-            return updated;
+            return trimChatHistory(updated);
           });
         }
       }
@@ -191,10 +226,10 @@ export default function UnifiedChat({
         return;
       }
       console.error("Error reading stream:", error);
-      setMessages((msgs) => [
+      setMessages((msgs) => trimChatHistory([
         ...msgs,
         { role: "assistant", content: "Oops, there was an error responding." },
-      ]);
+      ]));
     } finally {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
@@ -316,7 +351,7 @@ export default function UnifiedChat({
         >
           {messages.map((msg, idx) => (
             <div
-              key={idx}
+              key={`${msg.role}-${idx}`}
               className={`mb-2 ${
                 msg.role === "user" ? "text-right" : "text-left"
               }`}
@@ -349,14 +384,7 @@ export default function UnifiedChat({
                     : "bg-bubble-2 text-left"
                 } w-fit max-w-[85%] sm:max-w-[80%] md:max-w-[75%] inline-block px-3 py-2 rounded-lg font-[family-name:var(--font-geist-mono)] text-gray-200 break-words`}
               >
-                {msg.role === "assistant" ? (
-                  <div
-                    className="markdown-chat leading-relaxed [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:list-inside [&_ol]:list-inside [&_ul]:pl-1 [&_ol]:pl-1 [&_li]:my-0 [&_li>p]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-slate-900 [&_pre]:p-2 [&_code]:break-all"
-                    dangerouslySetInnerHTML={{ __html: toSafeMarkdownHtml(msg.content) }}
-                  />
-                ) : (
-                  <span className="whitespace-pre-wrap">{msg.content}</span>
-                )}
+                <MessageBody message={msg} />
               </div>
             </div>
           ))}

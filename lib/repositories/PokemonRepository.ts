@@ -3,7 +3,7 @@
 import { Pokemon, PokemonDetails, PokemonListResponse } from "@/types/interfaces";
 import { EvolutionChain, EvolutionNode } from "@/types/evolutionTypes";
 import { FetchError } from "../error_handling/FetchError";
-import redis, { connectRedis } from "@/lib/redis";
+import { connectRedis } from "@/lib/redis";
 
 const BASE_URL = "https://pokeapi.co/api/v2";
 
@@ -118,13 +118,19 @@ export class PokemonRepository {
     }
 
     static async fetchWithErrorHandling(url: string, retries = 3, delay = 1000) {
-        await connectRedis();
+        const redisClient = await connectRedis();
         this.pruneExpiredMemoryCache();
 
         const redisKey = `pokeapi:${url}`;
-        const cachedData = await redis.get(redisKey);
-        if (cachedData) {
-            return JSON.parse(cachedData);
+        if (redisClient) {
+            try {
+                const cachedData = await redisClient.get(redisKey);
+                if (cachedData) {
+                    return JSON.parse(cachedData);
+                }
+            } catch {
+                // If Redis read/parsing fails, continue with memory/origin fallback.
+            }
         }
 
         // Fallback to in-memory cache (optional)
@@ -151,7 +157,13 @@ export class PokemonRepository {
 
                 const data = await res.json();
 
-                await redis.set(redisKey, JSON.stringify(data), { EX: 60 * 60 * 24 * 7 });
+                if (redisClient) {
+                    try {
+                        await redisClient.set(redisKey, JSON.stringify(data), { EX: 60 * 60 * 24 * 7 });
+                    } catch {
+                        // Ignore Redis write failures; in-memory cache remains available.
+                    }
+                }
                 this.setCachedData(url, data);
 
                 return data;

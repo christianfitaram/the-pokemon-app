@@ -158,7 +158,18 @@ async function withSWRCache<T>(
     const redis = await connectRedis();
     const now = Date.now();
 
-    const cachedRaw = await redis.get(key);
+    if (!redis) {
+        const data = await fetcher();
+        return { data, state: "origin" };
+    }
+
+    let cachedRaw: string | null = null;
+    try {
+        cachedRaw = await redis.get(key);
+    } catch {
+        cachedRaw = null;
+    }
+
     if (cachedRaw) {
         try {
             const cached = JSON.parse(cachedRaw) as CacheEnvelope<T>;
@@ -170,7 +181,12 @@ async function withSWRCache<T>(
 
             if (ageSec <= staleTtlSec) {
                 const lockKey = `${key}:refresh-lock`;
-                const lock = await redis.set(lockKey, "1", { EX: 30, NX: true });
+                let lock: string | null = null;
+                try {
+                    lock = await redis.set(lockKey, "1", { EX: 30, NX: true });
+                } catch {
+                    lock = null;
+                }
 
                 if (lock) {
                     void fetcher()
@@ -179,7 +195,11 @@ async function withSWRCache<T>(
                                 data: newData,
                                 updatedAt: Date.now(),
                             };
-                            await redis.set(key, JSON.stringify(envelope), { EX: staleTtlSec });
+                            try {
+                                await redis.set(key, JSON.stringify(envelope), { EX: staleTtlSec });
+                            } catch {
+                                // Ignore background cache write failures.
+                            }
                         })
                         .catch((error) => {
                             console.warn("Background refresh failed", error);
@@ -195,7 +215,11 @@ async function withSWRCache<T>(
 
     const data = await fetcher();
     const envelope: CacheEnvelope<T> = { data, updatedAt: now };
-    await redis.set(key, JSON.stringify(envelope), { EX: staleTtlSec });
+    try {
+        await redis.set(key, JSON.stringify(envelope), { EX: staleTtlSec });
+    } catch {
+        // Ignore Redis write failures and return origin data.
+    }
 
     return { data, state: "origin" };
 }
