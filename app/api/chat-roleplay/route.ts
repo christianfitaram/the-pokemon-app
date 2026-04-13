@@ -1,54 +1,44 @@
-import {NextRequest} from "next/server";
+import { NextRequest } from "next/server";
 import { pool } from "@/lib/db/pgvector";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { isOriginAllowed } from "@/lib/security/origin";
-import {
-    normalizePokemonName,
-    roleplayRequestSchema,
-    roleplayToolArgsSchema,
-} from "@/lib/validation/ai";
+import { normalizePokemonName, roleplayRequestSchema } from "@/lib/validation/ai";
 import { getAIClient, getChatModelCandidates } from "@/lib/ai/provider";
+import { PokemonRepository } from "@/lib/repositories/PokemonRepository";
+import type { PokemonComplete } from "@/types/chatTypes";
 
-type RoleplayTool = {
-    type: "function";
-    function: {
-        name: string;
-        description: string;
-        parameters: {
-            type: "object";
-            properties: Record<string, { type: string; description: string }>;
-            required: string[];
-        };
-    };
+type PokemonEmbeddingRow = {
+    habitat?: string | null;
+    description?: string | null;
+    evolution_chain?: string[];
+    evolution_tree?: {
+        name?: string;
+        evolves_to?: Array<{ name?: string }>;
+    } | null;
 };
 
-async function createChatCompletionWithFallback(
-    aiClient: ReturnType<typeof getAIClient>,
-    messages: ChatCompletionMessageParam[],
-    options?: {
-        tools?: RoleplayTool[];
-        tool_choice?: "auto";
-    }
-) {
-    const models = getChatModelCandidates();
-    let lastError: string | null = null;
+type PokemonSpeciesPayload = {
+    base_happiness?: number | null;
+    color?: {
+        name?: string | null;
+    } | null;
+};
 
-    for (const model of models) {
-        try {
-            return await aiClient.chat.completions.create({
-                model,
-                messages,
-                ...options,
-            });
-        } catch (error) {
-            lastError = error instanceof Error ? error.message : String(error);
-        }
-    }
-
-    throw new Error(
-        `Unable to generate chat completion with configured provider/models. Last error: ${lastError ?? "unknown"}`
-    );
-}
+type RoleplaySummary = {
+    base_happiness: number | null;
+    name: string;
+    abilities: string[];
+    habitat: string | null;
+    height: string;
+    weight: string;
+    color: string | null;
+    types: string[];
+    stats: Array<{ name: string; value: number }>;
+    description: string | null;
+    secondary_description: string;
+    evolution_chain: string;
+    evolution_tree: string;
+};
 
 async function createChatStreamWithFallback(
     aiClient: ReturnType<typeof getAIClient>,
@@ -131,34 +121,67 @@ function createStreamResponse(
     });
 }
 
+async function getPokemonByNormalizedName(pokemonName: string): Promise<PokemonEmbeddingRow | null> {
+    const normalizedInputName = pokemonName.toLowerCase().replace(/[\s-]+/g, "");
 
-async function getPokemonByNormalizedName(pokemonName: string) {
-    const normalizedInputName = pokemonName.toLowerCase().replace(/\s+/g, "");
-
-    const { rows } = await pool.query(
+    const { rows } = await pool.query<PokemonEmbeddingRow>(
         `
-      SELECT name,
-             types,
-             abilities,
-             stats,
-             color,
-             habitat,
-             description,
-             image,
-             evolution_chain,
-             evolution_tree
-      FROM pokemon_embeddings
-      WHERE name_normalized = $1
-      LIMIT 1
-    `,
+          SELECT habitat,
+                 description,
+                 evolution_chain,
+                 evolution_tree
+          FROM pokemon_embeddings
+          WHERE name_normalized = $1
+          LIMIT 1
+        `,
         [normalizedInputName]
     );
 
-    if (rows.length === 0) {
-        return null;
-    }
+    return rows[0] ?? null;
+}
 
-    return rows[0];
+async function buildRoleplaySummary(pokemonName: string): Promise<RoleplaySummary> {
+    const speciesUrl = `https://pokeapi.co/api/v2/pokemon-species/${pokemonName}`;
+    const [pokemonData, speciesDataRaw, dbData] = await Promise.all([
+        PokemonRepository.getPokemonByName(pokemonName),
+        PokemonRepository.fetchWithErrorHandling(speciesUrl),
+        getPokemonByNormalizedName(pokemonName),
+    ]);
+
+    const typedPokemon = pokemonData as unknown as PokemonComplete;
+    const speciesData = (speciesDataRaw ?? {}) as PokemonSpeciesPayload;
+
+    const evolutionChainSentence = dbData?.evolution_chain && dbData.evolution_chain.length > 1
+        ? `This Pokemon evolves from ${dbData.evolution_chain[0]} to ${dbData.evolution_chain[dbData.evolution_chain.length - 1]}.`
+        : "This Pokemon does not evolve.";
+
+    const nextEvolution = dbData?.evolution_tree?.evolves_to?.[0]?.name;
+    const evolutionTreeSentence = nextEvolution
+        ? `${dbData?.evolution_tree?.name || pokemonName} evolves into ${nextEvolution}.`
+        : `${dbData?.evolution_tree?.name || pokemonName} does not evolve.`;
+
+    const typedHeight = (typedPokemon.height / 10).toFixed(1);
+    const typedWeight = (typedPokemon.weight / 10).toFixed(1);
+    const types = typedPokemon.types.map((type) => type.type.name);
+
+    return {
+        base_happiness: speciesData.base_happiness ?? null,
+        name: typedPokemon.name,
+        abilities: typedPokemon.abilities.map((ability) => ability.ability.name),
+        habitat: dbData?.habitat ?? null,
+        height: `${typedHeight}m`,
+        weight: `${typedWeight}kg`,
+        color: speciesData.color?.name ?? null,
+        types,
+        stats: typedPokemon.stats.map((stat) => ({
+            name: stat.stat.name,
+            value: stat.base_stat,
+        })),
+        description: dbData?.description ?? null,
+        secondary_description: `${typedPokemon.name} is a Pokemon of type ${types.join(", ")}.`,
+        evolution_chain: evolutionChainSentence,
+        evolution_tree: evolutionTreeSentence,
+    };
 }
 
 export async function POST(req: NextRequest) {
@@ -189,7 +212,11 @@ export async function POST(req: NextRequest) {
     const safeMessage = parsedBody.data.message;
     const safePokemon = normalizePokemonName(parsedBody.data.pokemon);
     const safeChatHistory = parsedBody.data.chatHistory;
-    const aiClient = getAIClient();
+
+    if (!safePokemon) {
+        return Response.json({ error: "Pokemon name is required" }, { status: 400 });
+    }
+
     const normalizedChatHistory = (() => {
         if (safeChatHistory.length === 0) {
             return [{ role: "user" as const, content: safeMessage }];
@@ -201,11 +228,25 @@ export async function POST(req: NextRequest) {
         return [...safeChatHistory, { role: "user" as const, content: safeMessage }];
     })();
 
+    let roleplaySummary: RoleplaySummary | null = null;
+    try {
+        roleplaySummary = await buildRoleplaySummary(safePokemon);
+    } catch (error) {
+        console.warn(`Unable to load roleplay context for ${safePokemon}:`, error);
+    }
+
+    const aiClient = getAIClient();
     const messages: ChatCompletionMessageParam[] = [
         {
             role: "system",
             content:
-                "You are a Pokémon who talks in the first person. Use the function getPokemonInfo to get data.",
+                "You are a Pokemon and always talk in first person as that Pokemon. Keep replies concise, playful, and on character.",
+        },
+        {
+            role: "system",
+            content: roleplaySummary
+                ? `Pokemon context:\n${JSON.stringify(roleplaySummary)}`
+                : `Pokemon context unavailable for ${safePokemon}.`,
         },
         ...normalizedChatHistory.map((message) => ({
             role: message.role,
@@ -213,121 +254,6 @@ export async function POST(req: NextRequest) {
         })),
     ];
 
-    // First call to check if function should be called
-    const response = await createChatCompletionWithFallback(aiClient, messages, {
-        tools: [
-            {
-                type: "function",
-                function: {
-                    name: "getPokemonInfo",
-                    description: "Gets a summary information of a specific Pokémon",
-                    parameters: {
-                        type: "object",
-                        properties: {
-                            name: { type: "string", description: "Name of the Pokémon" },
-                        },
-                        required: ["name"],
-                    },
-                },
-            },
-        ],
-        tool_choice: "auto", // let the model decide
-    });
-
-
-    const messageResponse = response.choices[0].message;
-
-    if (messageResponse.tool_calls?.length) {
-        const toolCall = messageResponse.tool_calls[0];
-        let pokeName = safePokemon;
-        const rawToolArgs = toolCall.function.arguments;
-        const parsedToolArgs = roleplayToolArgsSchema.safeParse(
-            (() => {
-                try {
-                    return JSON.parse(rawToolArgs);
-                } catch {
-                    return null;
-                }
-            })()
-        );
-        if (parsedToolArgs.success) {
-            pokeName = normalizePokemonName(parsedToolArgs.data.name);
-        }
-        if (!pokeName) {
-            return Response.json({ error: "Pokemon name is required" }, { status: 400 });
-        }
-
-        const pokeRes = await fetch(
-            `https://pokeapi.co/api/v2/pokemon/${pokeName}`
-        );
-        const specieRes = await fetch(
-            `https://pokeapi.co/api/v2/pokemon-species/${pokeName}`
-        );
-        if (!pokeRes.ok) {
-            return new Response(
-                JSON.stringify({
-                    reply: `I couldn't find information for ${pokeName}.`,
-                }),
-                {status: 200, headers: {"Content-Type": "application/json"}}
-            );
-        }
-        const dbData = await getPokemonByNormalizedName(pokeName);
-        const evolutionChainSentence = dbData?.evolution_chain?.length > 1
-            ? `This Pokémon evolves from ${dbData.evolution_chain[0]} to ${dbData.evolution_chain[dbData.evolution_chain.length - 1]}.`
-            : `This Pokémon does not evolve.`;
-
-        let evolutionTreeSentence = "Evolution data unavailable.";
-        try {
-            const nextEvo = dbData?.evolution_tree?.evolves_to?.[0]?.name;
-            if (nextEvo) {
-                evolutionTreeSentence = `${dbData?.evolution_tree?.name} evolves into ${nextEvo}.`;
-            } else {
-                evolutionTreeSentence = `${dbData?.evolution_tree?.name || pokeName} does not evolve.`;
-            }
-        } catch {}
-        const data = await pokeRes.json();
-        const specieData = await specieRes.json();
-        const summary = {
-            base_happiness: specieData.base_happiness || null,
-            name: data.name,
-            abilities : data.abilities.map((a: { ability: { name: string } }) => a.ability.name),
-            habitat: dbData?.habitat || null,
-            height:(data?.height / 10).toFixed(1)+'m',
-            weight:(data?.weight / 10).toFixed(1)+'kg',
-            color: specieData.color.name || null,
-            types: data.types.map((t: { type: { name: string } }) => t.type.name),
-            stats: data.stats.map((s: { stat: { name: string }; base_stat: number }) => ({
-                name: s.stat.name,
-                value: s.base_stat,
-            })),
-            description: dbData?.description || null,
-            secondary_description: `${data.name} is a Pokémon of type ${data.types
-                .map((t: { type: { name: string } }) => t.type.name)
-                .join(", ")}.`,
-            evolution_chain: evolutionChainSentence,
-            evolution_tree: evolutionTreeSentence,
-        };
-        // Add function response message to messages array
-        const newMessages: ChatCompletionMessageParam[] = [
-            ...messages,
-            {
-                role: "assistant",
-                content: null,
-                tool_calls: messageResponse.tool_calls,
-            },
-            {
-                role: "tool",
-                tool_call_id: toolCall.id,
-                content: JSON.stringify(summary),
-            },
-        ];
-
-        // Second call with streaming for final assistant response
-        const stream = await createChatStreamWithFallback(aiClient, newMessages);
-        return createStreamResponse(req.signal, stream);
-    } else {
-        // No function call, stream normal chat response
-        const stream = await createChatStreamWithFallback(aiClient, messages);
-        return createStreamResponse(req.signal, stream);
-    }
+    const stream = await createChatStreamWithFallback(aiClient, messages);
+    return createStreamResponse(req.signal, stream);
 }

@@ -16,7 +16,7 @@ describe("pokemon API contract regression checks", () => {
       next: null,
       previous: null,
       results: [{ name: "bulbasaur", id: 1 }],
-    } as any);
+    } as Awaited<ReturnType<typeof PokemonRepository.getPokemonsFirstPage>>);
 
     const response = await firstPageGET();
     const body = await response.json();
@@ -30,7 +30,7 @@ describe("pokemon API contract regression checks", () => {
   it("get-by-type route returns { success, data }", async () => {
     jest.spyOn(PokemonRepository, "getPokemonsByType").mockResolvedValue([
       { name: "bulbasaur", url: "https://pokeapi.co/api/v2/pokemon/1/" },
-    ] as any);
+    ] as Awaited<ReturnType<typeof PokemonRepository.getPokemonsByType>>);
 
     const response = await getByTypeGET(
       new NextRequest("http://localhost:3000/api/pokemons/get-by-type/grass"),

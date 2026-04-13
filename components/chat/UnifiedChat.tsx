@@ -8,17 +8,72 @@ import {chatApi} from "@/lib/api_clients/pokemonApiClient";
 import Image from "next/image";
 import { marked } from "marked";
 
+const SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"]);
+
+function sanitizeMarkdownHtml(renderedHtml: string): string {
+  if (typeof window === "undefined") {
+    return renderedHtml;
+  }
+
+  const doc = new DOMParser().parseFromString(renderedHtml, "text/html");
+  doc.querySelectorAll("script, style, iframe, object, embed, link, meta").forEach((node) => node.remove());
+
+  const elements = doc.querySelectorAll("*");
+  elements.forEach((element) => {
+    Array.from(element.attributes).forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+      const value = attribute.value.trim();
+
+      if (name.startsWith("on")) {
+        element.removeAttribute(attribute.name);
+        return;
+      }
+
+      if (name !== "href" && name !== "src") {
+        return;
+      }
+
+      if (!value) {
+        element.removeAttribute(attribute.name);
+        return;
+      }
+
+      if (value.startsWith("#") || value.startsWith("/")) {
+        return;
+      }
+
+      try {
+        const parsedUrl = new URL(value, window.location.origin);
+        if (!SAFE_PROTOCOLS.has(parsedUrl.protocol)) {
+          element.removeAttribute(attribute.name);
+        }
+      } catch {
+        element.removeAttribute(attribute.name);
+      }
+    });
+
+    if (element.tagName.toLowerCase() === "a" && element.getAttribute("href")) {
+      element.setAttribute("rel", "noopener noreferrer nofollow");
+      element.setAttribute("target", "_blank");
+    }
+  });
+
+  return doc.body.innerHTML;
+}
+
 function toSafeMarkdownHtml(content: string): string {
   const escaped = content
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  return marked.parse(escaped, {
+  const rendered = marked.parse(escaped, {
     gfm: true,
     breaks: true,
     async: false,
   }) as string;
+
+  return sanitizeMarkdownHtml(rendered);
 }
 
 export default function UnifiedChat({

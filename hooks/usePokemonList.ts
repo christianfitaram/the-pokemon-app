@@ -1,4 +1,4 @@
-import {useCallback, useState} from "react";
+import {useCallback, useRef, useState} from "react";
 import {ApiResponse, PokemonListResponse, Pokemon, UsePokemonListProps} from "@/types/interfaces";
 import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
 
@@ -27,6 +27,7 @@ export const usePokemonList = ({
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [count, setCount] = useState<number>(DEFAULT_POKEMON_COUNT);
+    const requestIdRef = useRef(0);
 
     // Handler for API response
     const handlePokemonApiResponse = (data: PokemonListResponse) => {
@@ -40,10 +41,12 @@ export const usePokemonList = ({
     const fetchAndHandle = useCallback(async (
         fetcher: () => Promise<ApiResponse<PokemonListResponse>>
     ) => {
+        const requestId = ++requestIdRef.current;
         try {
             setLoading(true);
             setError(null);
             const res = await fetcher();
+            if (requestId !== requestIdRef.current) return;
             const data = res?.data;
             if (!res.success || !data) {
                 setError(res.error || "No data returned from API");
@@ -51,9 +54,13 @@ export const usePokemonList = ({
             }
             handlePokemonApiResponse(data);
         } catch (error) {
-            setError((error as Error).message);
+            if (requestId === requestIdRef.current) {
+                setError((error as Error).message);
+            }
         } finally {
-            setLoading(false);
+            if (requestId === requestIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [onChange]);
 

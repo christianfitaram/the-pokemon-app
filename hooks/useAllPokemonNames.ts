@@ -1,62 +1,59 @@
 import {useEffect, useState} from "react";
-import {Pokemon, PokemonListResponse, ApiResponse} from "@/types/interfaces";
+import {Pokemon} from "@/types/interfaces";
 import {PokemonApiClient} from "@/lib/api_clients/pokemonApiClient";
 
-export function useAllPokemonNames() {
+const MIN_QUERY_LENGTH = 2;
+const RESULTS_LIMIT = 20;
+const DEBOUNCE_MS = 150;
+
+export function useAllPokemonNames(searchQuery: string) {
     const [pokemonNames, setPokemonNames] = useState<Pokemon[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchAndSetPokemonNames = async () => {
-            try {
-                const response = await PokemonApiClient.getAllPokemons();
-                if (response.success && response.data) {
-                    const pokemonData = response.data || [];
-                    setPokemonNames(pokemonData);
+        const normalizedQuery = searchQuery.trim().toLowerCase();
+        if (normalizedQuery.length < MIN_QUERY_LENGTH) {
+            setPokemonNames([]);
+            setLoading(false);
+            return;
+        }
 
-                    // Try to store in localStorage, but don't rely on it
-                    try {
-                        localStorage.setItem("allPokemonNames", JSON.stringify(pokemonData));
-                    } catch (e) {
-                        // Silently handle localStorage errors
-                        console.debug("localStorage not available");
-                    }
+        const controller = new AbortController();
+        let isCancelled = false;
+
+        const fetchAndSetPokemonNames = async () => {
+            setLoading(true);
+            try {
+                const response = await PokemonApiClient.getAllPokemons({
+                    query: normalizedQuery,
+                    limit: RESULTS_LIMIT,
+                    signal: controller.signal,
+                });
+                if (isCancelled) return;
+                if (response.success && response.data) {
+                    setPokemonNames(response.data);
                 } else {
                     setPokemonNames([]);
                 }
             } catch (error) {
-                console.error("Failed to fetch Pokemon names:", error);
-                setPokemonNames([]);
+                if (!isCancelled) {
+                    console.error("Failed to fetch Pokemon names:", error);
+                    setPokemonNames([]);
+                }
             } finally {
-                setLoading(false);
+                if (!isCancelled) {
+                    setLoading(false);
+                }
             }
         };
 
-        let stored: string | null = null;
-        try {
-            stored = localStorage.getItem("allPokemonNames");
-            if (stored?.length == 0) {
-                stored = null
-            }
-        } catch (e) {
-            // Silently handle localStorage errors
-            console.debug("localStorage not available");
-        }
-
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                const names = Array.isArray(parsed) ? parsed : parsed.results || [];
-                setPokemonNames(names);
-                setLoading(false);
-            } catch (error) {
-                // If parsing fails, fetch from API
-                fetchAndSetPokemonNames();
-            }
-        } else {
-            fetchAndSetPokemonNames();
-        }
-    }, []);
+        const timeoutId = window.setTimeout(fetchAndSetPokemonNames, DEBOUNCE_MS);
+        return () => {
+            isCancelled = true;
+            window.clearTimeout(timeoutId);
+            controller.abort();
+        };
+    }, [searchQuery]);
 
     return {pokemonNames, loading};
 }

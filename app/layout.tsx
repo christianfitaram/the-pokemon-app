@@ -66,7 +66,7 @@ export default function RootLayout({
         <footer className="py-8">
             <p>Made with ❤️ by <a href="https://enricfitaram.dev" target="_blank" rel="noopener noreferrer"
                                   className="underline">Christian Fita</a> in Barcelona</p>
-            <p>There is no CopyRight. Do as you please.</p>
+            <p>Pokemon is a trademark of Nintendo, Game Freak, and The Pokemon Company.</p>
         </footer>
         </body>
         </html>

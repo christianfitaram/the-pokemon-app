@@ -9,13 +9,26 @@ const COSTLY_API_PATHS = new Set([
 // Rate limiting store (in production, use Redis or similar)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 const MAX_RATE_LIMIT_KEYS = 10_000;
+const MAX_PRUNE_PER_REQUEST = 500;
 
 function cleanupRateLimitStore(now: number) {
-  if (rateLimitStore.size < MAX_RATE_LIMIT_KEYS) return;
+  let scanned = 0;
   for (const [key, value] of rateLimitStore.entries()) {
     if (now > value.resetTime) {
       rateLimitStore.delete(key);
     }
+    scanned += 1;
+    if (scanned >= MAX_PRUNE_PER_REQUEST) {
+      break;
+    }
+  }
+
+  while (rateLimitStore.size > MAX_RATE_LIMIT_KEYS) {
+    const oldestKey = rateLimitStore.keys().next().value;
+    if (!oldestKey) {
+      break;
+    }
+    rateLimitStore.delete(oldestKey);
   }
 }
 

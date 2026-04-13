@@ -10,8 +10,7 @@ export async function GET(
 
 
   try {
-    const url = await PokemonRepository.getEvolutionChainURL(name);
-    const dataEvo = await PokemonRepository.getEvolutionChainData(url);
+    const dataEvo = await PokemonRepository.getEvolutionChainByPokemonName(name);
     return NextResponse.json({
       success: true,
       data: dataEvo,

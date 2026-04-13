@@ -2,6 +2,11 @@ import PokemonDetailsPage from "@/components/pokemon-details/PokemonDetailsPage"
 import type { Metadata } from "next";
 import { PokemonRepository } from "@/lib/repositories/PokemonRepository";
 import { capitalizeFirstLetter } from "@/utils/capitalizeFirstLetter";
+import { cache } from "react";
+
+const getPokemonBySlug = cache(async (slug: string) => {
+  return PokemonRepository.getPokemonByName(slug);
+});
 
 export default async function Page({
   params,
@@ -10,7 +15,8 @@ export default async function Page({
 }) {
   const { slug } = await params;
 
-  return <PokemonDetailsPage number={slug} />;
+  const initialPokemon = await getPokemonBySlug(slug).catch(() => null);
+  return <PokemonDetailsPage number={slug} initialPokemon={initialPokemon} />;
 }
 
 // Tell Next.js to treat this as a dynamic route
@@ -26,7 +32,7 @@ export async function generateMetadata({
   const { slug } = await params;
 
   try {
-    const pokemon = await PokemonRepository.getPokemonByName(slug);
+    const pokemon = await getPokemonBySlug(slug);
     if (pokemon) {
       const pokemonName = capitalizeFirstLetter(pokemon.name);
       const types = pokemon.types

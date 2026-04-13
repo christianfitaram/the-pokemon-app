@@ -4,6 +4,9 @@ import "dotenv/config";
 const redis = createClient({ url: process.env.REDIS_URL || "redis://localhost:6379" });
 const BASE_URL = "https://pokeapi.co/api/v2";
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+type TypeResponse = {
+    pokemon?: unknown[];
+};
 
 const POKEMON_TYPES = [
     "normal", "fire", "water", "grass", "electric", "ice",
@@ -29,13 +32,13 @@ async function warmTypes() {
         }
 
         const res = await fetch(typeUrl);
-        const data: any = await res.json();
+        const data = await res.json() as TypeResponse;
 
         await redis.set(cacheKey, JSON.stringify(data), {
             EX: CACHE_TTL_SECONDS,
         });
 
-        console.log(`✅ Cached type '${type}' (${data.pokemon.length} Pokémon)`);
+        console.log(`✅ Cached type '${type}' (${data.pokemon?.length ?? 0} Pokémon)`);
     }
 
     await redis.quit();

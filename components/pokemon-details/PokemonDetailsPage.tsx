@@ -19,8 +19,14 @@ import { MainLayout } from "@/components/layout/GeneralLayout";
 import {getURLimg} from "@/utils/getURLimg";
 import { EnrichedPokemonData } from "@/types/enrichedPokemon";
 
-export default function PokemonDetailsClient({ number }: { number: string}) {
-  const [pokemon, setPokemon] = useState<PokemonDetails | null>(null);
+export default function PokemonDetailsClient({
+  number,
+  initialPokemon = null,
+}: {
+  number: string;
+  initialPokemon?: PokemonDetails | null;
+}) {
+  const [pokemon, setPokemon] = useState<PokemonDetails | null>(initialPokemon);
   const [enrichedPokemon, setEnrichedPokemon] = useState<EnrichedPokemonData | null>(null);
   const [showPokemonChat, setShowPokemonChat] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -32,40 +38,61 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
 
   useEffect(() => {
     if (!number) return;
+    let isCancelled = false;
 
     const fetchPokemonDetails = async () => {
       setLoading(true);
       setEnrichedPokemon(null);
 
       try {
-        const res = await PokemonApiClient.getPokemonByName(number);
+        const normalizedNumber = number.toLowerCase();
+        const pokemonForPage =
+          initialPokemon?.name.toLowerCase() === normalizedNumber
+            ? initialPokemon
+            : null;
 
-        if (!res.success) {
-          console.log(res.error || "Failed to fetch Pokémon pokemon");
-        }
+        const pokemonResponse = pokemonForPage
+          ? { success: true, data: pokemonForPage }
+          : await PokemonApiClient.getPokemonByName(number);
 
-        if (res.data) {
-          setPokemon(res.data);
-          savePokemon({ name: res.data.name, id: res.data.id });
-
-          const enrichedResponse = await PokemonApiClient.getEnrichedPokemonById(res.data.id);
-          if (enrichedResponse.success && enrichedResponse.data) {
-            setEnrichedPokemon(enrichedResponse.data);
-          } else {
+        if (!pokemonResponse.success || !pokemonResponse.data) {
+          if (!isCancelled) {
+            setPokemon(null);
             setEnrichedPokemon(null);
           }
+          return;
+        }
+
+        if (!isCancelled) {
+          setPokemon(pokemonResponse.data);
+          savePokemon({ name: pokemonResponse.data.name, id: pokemonResponse.data.id });
+        }
+
+        const enrichedResponse = await PokemonApiClient.getEnrichedPokemonById(pokemonResponse.data.id);
+        if (isCancelled) return;
+        if (enrichedResponse.success && enrichedResponse.data) {
+          setEnrichedPokemon(enrichedResponse.data);
+        } else {
+          setEnrichedPokemon(null);
         }
       } catch (error) {
-        console.error("Failed to fetch Pokemon details", error);
-        setPokemon(null);
-        setEnrichedPokemon(null);
+        if (!isCancelled) {
+          console.error("Failed to fetch Pokemon details", error);
+          setPokemon(null);
+          setEnrichedPokemon(null);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchPokemonDetails();
-  }, [number, savePokemon]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [number, savePokemon, initialPokemon]);
 
   //Lets passing the gradient for the background and UI elements
 
@@ -183,7 +210,12 @@ export default function PokemonDetailsClient({ number }: { number: string}) {
           )}
         </div>
         <SubContainer>
-          {pokemon && <EvolutionCard name={pokemon.name} />}
+          {pokemon && enrichedPokemon && (
+            <EvolutionCard
+              name={pokemon.name}
+              enrichedNodes={enrichedPokemon?.evolution.nodes}
+            />
+          )}
           <SeeAlso types={pokemon.types} />
         </SubContainer>
       </motion.div>

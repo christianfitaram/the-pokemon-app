@@ -1,9 +1,9 @@
 "use client";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {Pokemon, SearchProps} from "@/types/interfaces";
 import {useRecentlyViewed} from "@/hooks/useRecentlyViewed";
 import {useAllPokemonNames} from "@/hooks/useAllPokemonNames";
-import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
+import { searchEngine } from "@/lib/searchEngine";
 
 import {SearchInput} from "./SearchInput";
 import {ActionButtons} from "./ActionButtons";
@@ -25,7 +25,7 @@ const Search: React.FC<SearchProps> = ({
 
     const dropdownRef = useRef<HTMLDivElement>(null);
     const {recent} = useRecentlyViewed();
-    const {pokemonNames} = useAllPokemonNames();
+    const {pokemonNames} = useAllPokemonNames(searchQuery);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -36,25 +36,6 @@ const Search: React.FC<SearchProps> = ({
 
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const computeIntersection = (pokemonsByType: Pokemon[][]): Pokemon[] => {
-        if (pokemonsByType.length === 0) return [];
-        return pokemonsByType.reduce((acc, current) => {
-            return acc.filter((pokemon) =>
-                current.some((p) => p.name === pokemon.name)
-            );
-        }, pokemonsByType[0]);
-    };
-
-    const fetchByTypes = useCallback(async (types: string[]) => {
-        const responses = await Promise.all(
-            types.map((type) => PokemonApiClient.getPokemonsByType(type))
-        );
-        const pokemonsByType = responses
-            .filter((response): response is { success: true; data: Pokemon[] } => !!response.success && !!response.data)
-            .map((response) => response.data);
-        return computeIntersection(pokemonsByType);
     }, []);
 
     useEffect(() => {
@@ -71,7 +52,7 @@ const Search: React.FC<SearchProps> = ({
             try {
                 setTypeLoading(true);
                 setIsSearchOn(true);
-                const filteredPokemons = await fetchByTypes(selectedTypes);
+                const filteredPokemons = await searchEngine(selectedTypes);
                 if (!isCancelled) {
                     onChange(filteredPokemons);
                 }
@@ -88,7 +69,7 @@ const Search: React.FC<SearchProps> = ({
         return () => {
             isCancelled = true;
         };
-    }, [selectedTypes, onChange, setTypeLoading, setIsSearchOn, fetchByTypes]);
+    }, [selectedTypes, onChange, setTypeLoading, setIsSearchOn]);
 
     const handleTypeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const nextType = event.target.value;
@@ -128,9 +109,7 @@ const Search: React.FC<SearchProps> = ({
     };
 
 
-    const filteredDropdown = pokemonNames.filter((p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredDropdown = pokemonNames;
 
     return (
         <div className="background-muted bg-gray-400 flex flex-col items-center w-full my-4 py-4 relative gap-6">

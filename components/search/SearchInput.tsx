@@ -168,19 +168,22 @@ const DropdownItem: React.FC<{
     highlightedIndex: number;
     handleDropdownSelect: (pokemon: Pokemon) => void;
 }> = ({pokemon, index, searchQuery, highlightedIndex, handleDropdownSelect}) => (
-    <Link href={`/pokemon/${capitalizeFirstLetter(pokemon.name)}`}>
-        <li
-            id={`dropdown-item-${index}`}
+    <li
+        id={`dropdown-item-${index}`}
+        className={`px-4 py-2 hover:bg-blue-100 text-gray-800 ${
+            highlightedIndex === index ? "bg-blue-100" : ""
+        }`}
+    >
+        <Link
+            href={`/pokemon/${capitalizeFirstLetter(pokemon.name)}`}
             onClick={() => handleDropdownSelect(pokemon)}
-            className={`px-4 py-2 cursor-pointer hover:bg-blue-100 text-gray-800 ${
-                highlightedIndex === index ? "bg-blue-100" : ""
-            }`}
+            className="block cursor-pointer"
         >
             <span data-testid={`pokemon-card-${pokemon.name}`}>
                 {renderHighlightedText(pokemon.name, searchQuery)}
             </span>
-        </li>
-    </Link>
+        </Link>
+    </li>
 );
 
 function renderHighlightedText(text: string, query: string) {

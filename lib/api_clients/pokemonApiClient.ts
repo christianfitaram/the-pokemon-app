@@ -42,8 +42,15 @@ export class ApiClient {
     return response.json();
   }
 
-  static async get<T = unknown>(endpoint: string, headers?: Record<string, string>): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET', headers });
+  static async get<T = unknown>(
+    endpoint: string,
+    options?: { headers?: Record<string, string>; signal?: AbortSignal }
+  ): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'GET',
+      headers: options?.headers,
+      signal: options?.signal,
+    });
   }
 
   static async post<T = unknown>(
@@ -77,9 +84,22 @@ export class PokemonApiClient {
     }
   }
 
-  static async getAllPokemons(): Promise<ApiResponse<Pokemon[]>> {
+  static async getAllPokemons(options?: {
+    query?: string;
+    limit?: number;
+    signal?: AbortSignal;
+  }): Promise<ApiResponse<Pokemon[]>> {
     try {
-      const data = await ApiClient.get<ApiResponse<Pokemon[]>>('/pokemons/get-all');
+      const params = new URLSearchParams();
+      if (options?.query?.trim()) {
+        params.set("query", options.query.trim());
+      }
+      if (typeof options?.limit === "number") {
+        params.set("limit", String(options.limit));
+      }
+      const queryString = params.toString();
+      const endpoint = queryString ? `/pokemons/get-all?${queryString}` : '/pokemons/get-all';
+      const data = await ApiClient.get<ApiResponse<Pokemon[]>>(endpoint, { signal: options?.signal });
       return  data ;
     } catch (error) {
       return { success: false, error: (error as Error).message };

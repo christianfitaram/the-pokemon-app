@@ -1,7 +1,7 @@
 // app/lib/repositories/pokemonRepository.ts
 
 import { Pokemon, PokemonDetails, PokemonListResponse } from "@/types/interfaces";
-import { EvolutionNode } from "@/types/evolutionTypes";
+import { EvolutionChain, EvolutionNode } from "@/types/evolutionTypes";
 import { FetchError } from "../error_handling/FetchError";
 import redis, { connectRedis } from "@/lib/redis";
 
@@ -212,13 +212,16 @@ export class PokemonRepository {
 
     static async getEvolutionChainURL(name: string): Promise<string> {
         const speciesData = await this.fetchWithErrorHandling(`${BASE_URL}/pokemon-species/${name}`);
-        const evoData = await this.fetchWithErrorHandling(speciesData.evolution_chain.url);
-        return evoData.chain.species.url;
+        return speciesData.evolution_chain.url;
     }
 
     static async getEvolutionChainData(url: string): Promise<EvolutionNode> {
-        const speciesData = await this.fetchWithErrorHandling(url);
-        const evoData = await this.fetchWithErrorHandling(speciesData.evolution_chain.url);
+        const evoData = await this.fetchWithErrorHandling(url) as EvolutionChain;
         return evoData.chain;
+    }
+
+    static async getEvolutionChainByPokemonName(name: string): Promise<EvolutionNode> {
+        const evolutionChainUrl = await this.getEvolutionChainURL(name);
+        return this.getEvolutionChainData(evolutionChainUrl);
     }
 }

@@ -47,7 +47,7 @@ export interface NamedAPIResource {
     legacy: string;
   }
   
-  export interface Sprites {
+	  export interface Sprites {
     back_default: string | null;
     back_female: string | null;
     back_shiny: string | null;
@@ -56,9 +56,9 @@ export interface NamedAPIResource {
     front_female: string | null;
     front_shiny: string | null;
     front_shiny_female: string | null;
-    other?: any;     //expand this if needed
-    versions?: any;  //expand this if needed
-  }
+	    other?: Record<string, unknown>;
+	    versions?: Record<string, unknown>;
+	  }
 
   export interface PokemonComplete {
     id: number;
@@ -81,8 +81,8 @@ export interface NamedAPIResource {
     stats: Stat[];
     types: Type[];
   
-    past_abilities: any[];
-    past_types: any[];
+	    past_abilities: unknown[];
+	    past_types: unknown[];
 }
 
 export type ChatType = "pokemon" | "assistant";

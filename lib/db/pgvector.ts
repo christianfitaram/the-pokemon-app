@@ -14,27 +14,6 @@ export const pool = new Pool({
   max: 20,
 });
 
-// Add connection monitoring
-pool.on('connect', () => {
-  console.log('Database connected successfully');
-});
-
 pool.on('error', (err) => {
   console.error('Unexpected database error:', err);
 });
-
-// Add basic connection testing
-const testConnection = async () => {
-  try {
-    const client = await pool.connect();
-    console.log('Database connection test successful');
-    client.release();
-    return true;
-  } catch (err) {
-    console.error('Database connection test failed:', err);
-    return false;
-  }
-};
-
-// Export both pool and test function
-export { testConnection };

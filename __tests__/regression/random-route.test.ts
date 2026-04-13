@@ -24,7 +24,7 @@ describe("random route regression checks", () => {
     jest.spyOn(PokemonRepository, "getRandomPokemon").mockResolvedValue({
       name: "pikachu",
       id: 25,
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof PokemonRepository.getRandomPokemon>>);
 
     const response = await GET();
     const body = await response.json();
