@@ -308,6 +308,63 @@ async function createChatStreamWithFallback(
     );
 }
 
+function createStreamResponse(
+    requestSignal: AbortSignal,
+    stream: AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>
+) {
+    const encoder = new TextEncoder();
+
+    const readableStream = new ReadableStream({
+        async start(controller) {
+            const iterator = stream[Symbol.asyncIterator]();
+            let aborted = requestSignal.aborted;
+
+            const handleAbort = () => {
+                aborted = true;
+                void iterator.return?.();
+                try {
+                    controller.close();
+                } catch {
+                    // Ignore close errors on already closed stream.
+                }
+            };
+
+            requestSignal.addEventListener("abort", handleAbort, { once: true });
+
+            try {
+                while (!aborted) {
+                    const { value, done } = await iterator.next();
+                    if (done || aborted) {
+                        break;
+                    }
+
+                    const chunk = value?.choices?.[0]?.delta?.content ?? "";
+                    if (chunk) {
+                        controller.enqueue(encoder.encode(chunk));
+                    }
+                }
+                if (!aborted) {
+                    controller.close();
+                }
+            } catch (error) {
+                if (!aborted) {
+                    controller.error(error);
+                }
+            } finally {
+                requestSignal.removeEventListener("abort", handleAbort);
+            }
+        },
+    });
+
+    return new Response(readableStream, {
+        headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+        },
+    });
+}
+
 export async function POST(req: NextRequest) {
     const origin = req.headers.get("origin");
     if (!origin || !isOriginAllowed(origin)) {
@@ -335,6 +392,9 @@ export async function POST(req: NextRequest) {
 
     const { chatHistory: safeChatHistory } = parsedBody.data;
     const userMessage = safeChatHistory.at(-1)?.content || "Find a Pokémon";
+    const normalizedChatHistory = safeChatHistory.length
+        ? safeChatHistory
+        : [{ role: "user" as const, content: userMessage }];
     const aiClient = getAIClient();
 
     // Step 1: Prefer structured retrieval for characteristic queries; fallback to semantic retrieval.
@@ -361,39 +421,14 @@ export async function POST(req: NextRequest) {
                 : "No matching Pokémon found.",
 
         },
-        ...safeChatHistory.map((message) => ({
+        ...normalizedChatHistory.map((message) => ({
             role: message.role,
             content: message.content,
         })),
-        {
-            role: "user",
-            content: userMessage,
-        },
     ];
 
     // Step 4: Stream GPT-4o-mini response
     const stream = await createChatStreamWithFallback(aiClient, messages);
 
-    const encoder = new TextEncoder();
-
-    const readableStream = new ReadableStream({
-        async start(controller) {
-            try {
-                for await (const chunk of stream) {
-                    controller.enqueue(encoder.encode(chunk.choices[0].delta?.content || ""));
-                }
-                controller.close();
-            } catch (error) {
-                controller.error(error);
-            }
-        },
-    });
-
-    return new Response(readableStream, {
-        headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-        },
-    });
+    return createStreamResponse(req.signal, stream);
 }

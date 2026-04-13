@@ -49,10 +49,10 @@ const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = fa
 
                 <Image
                     src={imgURL}
-                    priority
                     alt={pokemonOverview.name || "Pokemon Image"}
                     width={160}
                     height={160}
+                    sizes="(max-width: 640px) 40vw, (max-width: 1024px) 22vw, 160px"
                     className="w-40 h-40 object-contain mx-auto"
                 />
                 <div className="flex flex-col items-center justify-center h-full relative z-10">

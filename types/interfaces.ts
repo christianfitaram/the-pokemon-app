@@ -118,6 +118,7 @@ export interface ApiClientOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
     body?: unknown;
     headers?: Record<string, string>;
+    signal?: AbortSignal;
 }
 
 export interface UnifiedChatProps {

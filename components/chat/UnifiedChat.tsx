@@ -46,6 +46,16 @@ export default function UnifiedChat({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -53,10 +63,23 @@ export default function UnifiedChat({
     }
   }, [messages]);
 
-  const sendMessage = useCallback(async () => {
-    if (!input.trim()) return;
+  const cancelInFlightRequest = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    if (isMountedRef.current) {
+      setLoading(false);
+    }
+  }, []);
 
-    const userMessage: ChatMessage = { role: "user", content: input };
+  const sendMessage = useCallback(async () => {
+    const trimmedInput = input.trim();
+    if (!trimmedInput || loading) return;
+
+    cancelInFlightRequest();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const userMessage: ChatMessage = { role: "user", content: trimmedInput };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
@@ -64,8 +87,8 @@ export default function UnifiedChat({
 
     try {
       const res = chatType === "pokemon"
-        ? await chatApi.roleplay(input, pokemon!.name, newMessages)
-        : await chatApi.assistant(newMessages);
+        ? await chatApi.roleplay(trimmedInput, pokemon!.name, newMessages, controller.signal)
+        : await chatApi.assistant(newMessages, controller.signal);
 
       if (!res.body) {
         throw new Error("No response body");
@@ -77,10 +100,13 @@ export default function UnifiedChat({
       let assistantMessage = "";
       let firstChunkReceived = false;
 
-      while (!done) {
+      while (!done && !controller.signal.aborted) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
-        if (value) {
+        if (controller.signal.aborted) {
+          break;
+        }
+        if (value && isMountedRef.current) {
           const chunk = decoder.decode(value, { stream: true });
           assistantMessage += chunk;
 
@@ -106,15 +132,23 @@ export default function UnifiedChat({
         }
       }
     } catch (error) {
+      if (controller.signal.aborted) {
+        return;
+      }
       console.error("Error reading stream:", error);
       setMessages((msgs) => [
         ...msgs,
         { role: "assistant", content: "Oops, there was an error responding." },
       ]);
     } finally {
-      setLoading(false);
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+      if (isMountedRef.current && !controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-  }, [input, messages, setMessages, chatType, pokemon]);
+  }, [input, loading, cancelInFlightRequest, messages, setMessages, chatType, pokemon]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -125,6 +159,16 @@ export default function UnifiedChat({
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
   }, []);
+
+  const handleClose = useCallback(() => {
+    cancelInFlightRequest();
+    onClose();
+  }, [cancelInFlightRequest, onClose]);
+
+  const handleBack = useCallback(() => {
+    cancelInFlightRequest();
+    onBack?.();
+  }, [cancelInFlightRequest, onBack]);
 
   const getChatTitle = () => {
     if (chatType === "pokemon" && pokemon) {
@@ -199,8 +243,8 @@ export default function UnifiedChat({
             {getChatSubtitle()}
           </div>
           <div className="flex flex-col">
-            <button
-              onClick={onClose}
+              <button
+              onClick={handleClose}
               aria-label="Close chat"
               title="Close chat"
               className="bg-icon-header rounded-full p-2 hover:bg-gray-700"
@@ -287,7 +331,7 @@ export default function UnifiedChat({
           <button
             type="button"
             aria-label="Back to Pokemon details"
-            onClick={onBack}
+            onClick={handleBack}
             className="text-gray-200 hover:text-gray-400 flex flex-row items-center gap-2 border border-gray-200 rounded-full px-3"
           >
             <FaLongArrowAltLeft className="h-6 w-6" />

@@ -58,9 +58,13 @@ const Search: React.FC<SearchProps> = ({
     }, []);
 
     useEffect(() => {
+        let isCancelled = false;
+
         const fetchPokemonByType = async () => {
             if (selectedTypes.length === 0) {
+                setIsSearchOn(false);
                 onChange([]);
+                setTypeLoading(false);
                 return;
             }
 
@@ -68,16 +72,22 @@ const Search: React.FC<SearchProps> = ({
                 setTypeLoading(true);
                 setIsSearchOn(true);
                 const filteredPokemons = await fetchByTypes(selectedTypes);
-
-                onChange(filteredPokemons);
+                if (!isCancelled) {
+                    onChange(filteredPokemons);
+                }
             } catch (error) {
                 console.error('Error fetching Pokemon by type:', error);
             } finally {
-                setTypeLoading(false);
+                if (!isCancelled) {
+                    setTypeLoading(false);
+                }
             }
         };
 
         fetchPokemonByType();
+        return () => {
+            isCancelled = true;
+        };
     }, [selectedTypes, onChange, setTypeLoading, setIsSearchOn, fetchByTypes]);
 
     const handleTypeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -88,27 +98,10 @@ const Search: React.FC<SearchProps> = ({
         }
     };
 
-    const removeType = async (type: string) => {
+    const removeType = (type: string) => {
         const updatedTypes = selectedTypes.filter((selected) => selected !== type);
         setSelectedTypes(updatedTypes);
         setSelectedType(undefined);
-
-        if (updatedTypes.length === 0) {
-            setIsSearchOn(false);
-            onChange([]);
-            return;
-        }
-
-        try {
-            setTypeLoading(true);
-            const filteredPokemons = await fetchByTypes(updatedTypes);
-            onChange(filteredPokemons);
-            setIsSearchOn(true);
-        } catch (error) {
-            console.error("Error updating filtered Pokemon:", error);
-        } finally {
-            setTypeLoading(false);
-        }
     };
 
     const handleDropdownSelect = (pokemon: Pokemon) => {

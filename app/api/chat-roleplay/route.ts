@@ -74,6 +74,63 @@ async function createChatStreamWithFallback(
     );
 }
 
+function createStreamResponse(
+    requestSignal: AbortSignal,
+    stream: AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>
+) {
+    const encoder = new TextEncoder();
+
+    const readableStream = new ReadableStream({
+        async start(controller) {
+            const iterator = stream[Symbol.asyncIterator]();
+            let aborted = requestSignal.aborted;
+
+            const handleAbort = () => {
+                aborted = true;
+                void iterator.return?.();
+                try {
+                    controller.close();
+                } catch {
+                    // Ignore close errors on already closed stream.
+                }
+            };
+
+            requestSignal.addEventListener("abort", handleAbort, { once: true });
+
+            try {
+                while (!aborted) {
+                    const { value, done } = await iterator.next();
+                    if (done || aborted) {
+                        break;
+                    }
+
+                    const chunk = value?.choices?.[0]?.delta?.content ?? "";
+                    if (chunk) {
+                        controller.enqueue(encoder.encode(chunk));
+                    }
+                }
+                if (!aborted) {
+                    controller.close();
+                }
+            } catch (error) {
+                if (!aborted) {
+                    controller.error(error);
+                }
+            } finally {
+                requestSignal.removeEventListener("abort", handleAbort);
+            }
+        },
+    });
+
+    return new Response(readableStream, {
+        headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+        },
+    });
+}
+
 
 async function getPokemonByNormalizedName(pokemonName: string) {
     const normalizedInputName = pokemonName.toLowerCase().replace(/\s+/g, "");
@@ -133,6 +190,16 @@ export async function POST(req: NextRequest) {
     const safePokemon = normalizePokemonName(parsedBody.data.pokemon);
     const safeChatHistory = parsedBody.data.chatHistory;
     const aiClient = getAIClient();
+    const normalizedChatHistory = (() => {
+        if (safeChatHistory.length === 0) {
+            return [{ role: "user" as const, content: safeMessage }];
+        }
+        const lastMessage = safeChatHistory.at(-1);
+        if (lastMessage?.role === "user" && lastMessage.content === safeMessage) {
+            return safeChatHistory;
+        }
+        return [...safeChatHistory, { role: "user" as const, content: safeMessage }];
+    })();
 
     const messages: ChatCompletionMessageParam[] = [
         {
@@ -140,11 +207,10 @@ export async function POST(req: NextRequest) {
             content:
                 "You are a Pokémon who talks in the first person. Use the function getPokemonInfo to get data.",
         },
-        ...safeChatHistory.map((message) => ({
+        ...normalizedChatHistory.map((message) => ({
             role: message.role,
             content: message.content,
         })),
-        {role: "user", content: safeMessage},
     ];
 
     // First call to check if function should be called
@@ -258,54 +324,10 @@ export async function POST(req: NextRequest) {
 
         // Second call with streaming for final assistant response
         const stream = await createChatStreamWithFallback(aiClient, newMessages);
-
-        const encoder = new TextEncoder();
-
-        const readableStream = new ReadableStream({
-            async start(controller) {
-                try {
-                    for await (const chunk of stream) {
-                        controller.enqueue(encoder.encode(chunk.choices[0].delta?.content || ""));
-                    }
-                    controller.close();
-                } catch (error) {
-                    controller.error(error);
-                }
-            },
-        });
-
-        return new Response(readableStream, {
-            headers: {
-                "Content-Type": "text/event-stream",
-                "Cache-Control": "no-cache",
-                Connection: "keep-alive",
-            },
-        });
+        return createStreamResponse(req.signal, stream);
     } else {
         // No function call, stream normal chat response
         const stream = await createChatStreamWithFallback(aiClient, messages);
-
-        const encoder = new TextEncoder();
-
-        const readableStream = new ReadableStream({
-            async start(controller) {
-                try {
-                    for await (const chunk of stream) {
-                        controller.enqueue(encoder.encode(chunk.choices[0].delta?.content || ""));
-                    }
-                    controller.close();
-                } catch (error) {
-                    controller.error(error);
-                }
-            },
-        });
-
-        return new Response(readableStream, {
-            headers: {
-                "Content-Type": "text/event-stream",
-                "Cache-Control": "no-cache",
-                Connection: "keep-alive",
-            },
-        });
+        return createStreamResponse(req.signal, stream);
     }
 }

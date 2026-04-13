@@ -16,11 +16,12 @@ export class ApiClient {
     endpoint: string,
     options: ApiClientOptions = {}
   ): Promise<T> {
-    const { method = 'GET', body, headers } = options;
+    const { method = 'GET', body, headers, signal } = options;
 
     const config: RequestInit = {
       method,
       headers: this.getHeaders(headers),
+      signal,
     };
 
     if (body && method !== 'GET') {
@@ -45,8 +46,17 @@ export class ApiClient {
     return this.request<T>(endpoint, { method: 'GET', headers });
   }
 
-  static async post<T = unknown>(endpoint: string, body: unknown, headers?: Record<string, string>): Promise<T> {
-    return this.request<T>(endpoint, { method: 'POST', body, headers });
+  static async post<T = unknown>(
+    endpoint: string,
+    body: unknown,
+    options?: { headers?: Record<string, string>; signal?: AbortSignal }
+  ): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body,
+      headers: options?.headers,
+      signal: options?.signal,
+    });
   }
 }
 
@@ -127,8 +137,8 @@ export class PokemonApiClient {
 }
 
 export const chatApi = {
-  assistant: (chatHistory: ChatMessage[]) =>
-    ApiClient.post<Response>('/assistance', { chatHistory }),
-  roleplay: (message: string, pokemon: string, chatHistory: ChatMessage[]) =>
-    ApiClient.post<Response>('/chat-roleplay', { message, pokemon, chatHistory }),
+  assistant: (chatHistory: ChatMessage[], signal?: AbortSignal) =>
+    ApiClient.post<Response>('/assistance', { chatHistory }, { signal }),
+  roleplay: (message: string, pokemon: string, chatHistory: ChatMessage[], signal?: AbortSignal) =>
+    ApiClient.post<Response>('/chat-roleplay', { message, pokemon, chatHistory }, { signal }),
 };

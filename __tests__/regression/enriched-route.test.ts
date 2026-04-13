@@ -2,13 +2,13 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 type MockRedis = {
-  get: jest.Mock;
-  set: jest.Mock;
+  get: jest.Mock<(key: string) => Promise<string | null>>;
+  set: jest.Mock<(key: string, value: string, options?: { EX?: number; NX?: boolean }) => Promise<"OK" | null>>;
 };
 
 const mockRedis: MockRedis = {
-  get: jest.fn(),
-  set: jest.fn(),
+  get: jest.fn<(key: string) => Promise<string | null>>(),
+  set: jest.fn<(key: string, value: string, options?: { EX?: number; NX?: boolean }) => Promise<"OK" | null>>(),
 };
 
 const pokemonPayload = {
@@ -99,8 +99,9 @@ function mockResponse(body: unknown): Response {
 
 async function loadRoute(mockRedis: MockRedis) {
   jest.resetModules();
+  const connectRedis = jest.fn<() => Promise<MockRedis>>().mockResolvedValue(mockRedis);
   jest.doMock("@/lib/redis", () => ({
-    connectRedis: jest.fn().mockResolvedValue(mockRedis),
+    connectRedis,
   }));
   return import("@/app/api/pokemons/enriched/[id]/route");
 }
