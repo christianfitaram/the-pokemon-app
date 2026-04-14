@@ -112,7 +112,26 @@ const Search: React.FC<SearchProps> = ({
     const goToHome = () => {
         setIsSearchOn(false);
         setSelectedTypes([]);
+        setSearchQuery("");
+        setShowDropdown(false);
+        setHighlightedIndex(0);
+        setNoMatchesMessage(null);
         setTypeError(null);
+        onChange([]);
+    };
+
+    const clearSearch = () => {
+        setSearchQuery("");
+        setShowDropdown(false);
+        setHighlightedIndex(0);
+        setNoMatchesMessage(null);
+    };
+
+    const clearTypes = () => {
+        setSelectedTypes([]);
+        setSelectedType(undefined);
+        setTypeError(null);
+        setIsSearchOn(false);
         onChange([]);
     };
 
@@ -120,7 +139,7 @@ const Search: React.FC<SearchProps> = ({
     const filteredDropdown = pokemonNames;
 
     return (
-        <div className="background-muted bg-gray-400 flex flex-col items-center w-full my-4 py-4 relative gap-6">
+        <div className="background-muted flex flex-col items-center w-full mt-8 mb-4 py-6 relative gap-6 rounded-b-[2rem] border-b border-white/5 shadow-2xl">
             <div ref={dropdownRef} className="relative w-full max-w-sm">
                 <SearchInput
                     searchQuery={searchQuery}
@@ -132,8 +151,13 @@ const Search: React.FC<SearchProps> = ({
                     noMatchesMessage={noMatchesMessage}
                     setNoMatchesMessage={setNoMatchesMessage}
                     filteredDropdown={filteredDropdown}
+                    onClear={clearSearch}
                     handleDropdownSelect={handleDropdownSelect}
                 />
+            </div>
+
+            <div className="w-full max-w-4xl px-4 text-center text-sm text-slate-300">
+                Search by name, or combine types to build a focused result set. Filters stay visible until you clear them.
             </div>
 
             <SelectMenu
@@ -144,16 +168,17 @@ const Search: React.FC<SearchProps> = ({
             <SelectedTypes
                 selectedTypes={selectedTypes}
                 removeType={removeType}
+                onClearAll={clearTypes}
             />
             {typeError && (
-                <div className="w-full max-w-2xl rounded-md border border-red-400 bg-red-950/40 p-3">
-                    <p className="text-red-300 text-sm" role="alert" aria-live="assertive">
+                <div className="w-full max-w-2xl rounded-3xl border border-red-400/30 bg-red-950/40 p-4 shadow-lg">
+                    <p className="text-red-200 text-sm" role="alert" aria-live="assertive">
                         {typeError}
                     </p>
                     <button
                         type="button"
                         onClick={() => setTypeRetryNonce((value) => value + 1)}
-                        className="mt-2 rounded border border-red-300 px-3 py-1 text-red-100 hover:bg-red-900/40"
+                        className="mt-3 rounded-full border border-red-300/60 px-4 py-2 text-red-100 transition hover:bg-red-900/40"
                     >
                         Retry type search
                     </button>

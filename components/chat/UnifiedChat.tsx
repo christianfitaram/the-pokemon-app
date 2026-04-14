@@ -10,6 +10,9 @@ import { marked } from "marked";
 
 const SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"]);
 const MAX_CHAT_HISTORY_MESSAGES = 30;
+const FIRST_CHUNK_TIMEOUT_MS = 20000;
+const STREAM_SETTLE_TIMEOUT_MS = 2500;
+const DEBUG_CHAT_STREAM = true;
 
 function trimChatHistory(messages: ChatMessage[]): ChatMessage[] {
   if (messages.length <= MAX_CHAT_HISTORY_MESSAGES) {
@@ -84,12 +87,49 @@ function toSafeMarkdownHtml(content: string): string {
   return sanitizeMarkdownHtml(rendered);
 }
 
+function normalizeAssistantStreamText(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed.includes("data:")) {
+    return content;
+  }
+
+  const extractedTokens: string[] = [];
+  const eventBlocks = trimmed.split(/\r?\n\r?\n/);
+
+  for (const block of eventBlocks) {
+    const dataLines = block
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart());
+
+    if (dataLines.length === 0) {
+      continue;
+    }
+
+    const payload = dataLines.join("\n");
+    if (payload === "[DONE]") {
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(payload) as { type?: string; text?: string };
+      if (parsed?.type === "token" && typeof parsed.text === "string") {
+        extractedTokens.push(parsed.text);
+      }
+    } catch {
+      extractedTokens.push(payload);
+    }
+  }
+
+  return extractedTokens.length > 0 ? extractedTokens.join("") : content;
+}
+
 const MessageBody = memo(function MessageBody({ message }: { message: ChatMessage }) {
   const assistantHtml = useMemo(() => {
     if (message.role !== "assistant") {
       return null;
     }
-    return toSafeMarkdownHtml(message.content);
+    return toSafeMarkdownHtml(normalizeAssistantStreamText(message.content));
   }, [message.role, message.content]);
 
   if (message.role === "assistant") {
@@ -134,7 +174,8 @@ export default function UnifiedChat({
   );
 
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [lastFailedInput, setLastFailedInput] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -158,13 +199,16 @@ export default function UnifiedChat({
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     if (isMountedRef.current) {
-      setLoading(false);
+      setIsAwaitingFirstChunk(false);
+      setIsStreaming(false);
     }
   }, []);
 
+  const isBusy = isAwaitingFirstChunk || isStreaming;
+
   const sendMessage = useCallback(async (overrideInput?: string) => {
     const trimmedInput = (overrideInput ?? input).trim();
-    if (!trimmedInput || loading) return;
+    if (!trimmedInput || isBusy) return;
 
     cancelInFlightRequest();
     const controller = new AbortController();
@@ -177,12 +221,29 @@ export default function UnifiedChat({
       setInput("");
     }
     setLastFailedInput(null);
-    setLoading(true);
+    setIsAwaitingFirstChunk(true);
+    setIsStreaming(true);
+    let firstChunkReceived = false;
+    let requestId: string | null = null;
+    const withRequestId = (message: string) =>
+      requestId ? `${message} (request id: ${requestId})` : message;
 
     try {
       const res = chatType === "pokemon"
         ? await chatApi.roleplay(trimmedInput, pokemon!.name, newMessages, controller.signal)
         : await chatApi.assistant(newMessages, controller.signal);
+      const responseClone = typeof res.clone === "function" ? res.clone() : null;
+      requestId = res.headers.get("x-request-id")?.trim() || null;
+      const contentType = res.headers.get("content-type")?.toLowerCase() || "";
+
+      if (DEBUG_CHAT_STREAM && typeof window !== "undefined") {
+        console.debug("[UnifiedChat] stream response", {
+          chatType,
+          requestId,
+          contentType,
+          hasBody: Boolean(res.body),
+        });
+      }
 
       if (!res.body) {
         throw new Error("No response body");
@@ -192,7 +253,110 @@ export default function UnifiedChat({
       const decoder = new TextDecoder();
       let done = false;
       let assistantMessage = "";
-      let firstChunkReceived = false;
+      let sseBuffer = "";
+      let rawAccumulator = "";
+      let sawSseDataFrame = false;
+      let chunkCount = 0;
+      let streamSettleTimeout: number | null = null;
+
+      const clearStreamSettleTimeout = () => {
+        if (streamSettleTimeout !== null) {
+          window.clearTimeout(streamSettleTimeout);
+          streamSettleTimeout = null;
+        }
+      };
+
+      const scheduleStreamSettleTimeout = () => {
+        clearStreamSettleTimeout();
+        streamSettleTimeout = window.setTimeout(() => {
+          if (firstChunkReceived && !controller.signal.aborted) {
+            if (DEBUG_CHAT_STREAM && typeof window !== "undefined") {
+              console.debug("[UnifiedChat] stream settle timeout", {
+                chatType,
+                requestId,
+                assistantMessageLength: assistantMessage.length,
+              });
+            }
+            setIsAwaitingFirstChunk(false);
+            setIsStreaming(false);
+            controller.abort();
+          }
+        }, STREAM_SETTLE_TIMEOUT_MS);
+      };
+
+      const parseSseBuffer = () => {
+        let updated = false;
+        let doneReceived = false;
+
+        while (true) {
+          const separatorMatch = sseBuffer.match(/\r?\n\r?\n/);
+          if (!separatorMatch || separatorMatch.index === undefined) {
+            break;
+          }
+
+          const separatorIndex = separatorMatch.index;
+          const separatorLength = separatorMatch[0].length;
+          const rawEvent = sseBuffer.slice(0, separatorIndex);
+          sseBuffer = sseBuffer.slice(separatorIndex + separatorLength);
+
+          const dataLines = rawEvent
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trimStart());
+
+          if (dataLines.length === 0) {
+            continue;
+          }
+
+          sawSseDataFrame = true;
+
+          const payload = dataLines.join("\n");
+          if (payload === "[DONE]") {
+            doneReceived = true;
+            break;
+          }
+
+          let tokenText = "";
+          try {
+            const parsed = JSON.parse(payload) as { type?: string; text?: string };
+            if (parsed?.type === "token" && typeof parsed.text === "string") {
+              tokenText = parsed.text;
+            }
+          } catch {
+            tokenText = payload;
+          }
+
+          if (tokenText) {
+            assistantMessage += tokenText;
+            updated = true;
+          }
+        }
+
+        return { updated, doneReceived };
+      };
+
+      const commitAssistantMessage = () => {
+        const normalizedAssistantMessage = normalizeAssistantStreamText(assistantMessage);
+        setMessages((msgs) => {
+          if (msgs[msgs.length - 1]?.role !== "assistant") {
+            return trimChatHistory([
+              ...msgs,
+              { role: "assistant", content: normalizedAssistantMessage },
+            ]);
+          }
+          const updated = [...msgs];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: normalizedAssistantMessage,
+          };
+          return trimChatHistory(updated);
+        });
+      };
+      const firstChunkTimeout = window.setTimeout(() => {
+        if (!firstChunkReceived && !controller.signal.aborted) {
+          controller.abort();
+        }
+      }, FIRST_CHUNK_TIMEOUT_MS);
 
       while (!done && !controller.signal.aborted) {
         const { value, done: doneReading } = await reader.read();
@@ -202,13 +366,95 @@ export default function UnifiedChat({
         }
         if (value && isMountedRef.current) {
           const chunk = decoder.decode(value, { stream: true });
-          assistantMessage += chunk;
+          chunkCount += 1;
+          if (DEBUG_CHAT_STREAM && typeof window !== "undefined" && chunkCount <= 5) {
+            console.debug("[UnifiedChat] stream chunk", {
+              chatType,
+              requestId,
+              chunkCount,
+              length: chunk.length,
+              preview: chunk.slice(0, 200),
+            });
+          }
+          rawAccumulator += chunk;
 
           if (!firstChunkReceived) {
-            setLoading(false);
+            setIsAwaitingFirstChunk(false);
             firstChunkReceived = true;
+            window.clearTimeout(firstChunkTimeout);
           }
 
+          scheduleStreamSettleTimeout();
+
+          sseBuffer += chunk;
+          const { updated, doneReceived } = parseSseBuffer();
+          if (DEBUG_CHAT_STREAM && typeof window !== "undefined" && chunkCount <= 5) {
+            console.debug("[UnifiedChat] parser state", {
+              chatType,
+              requestId,
+              chunkCount,
+              sawSseDataFrame,
+              sseBufferLength: sseBuffer.length,
+              assistantMessageLength: assistantMessage.length,
+              updated,
+              doneReceived,
+            });
+          }
+          if (updated) {
+            commitAssistantMessage();
+          }
+          if (doneReceived) {
+            setIsAwaitingFirstChunk(false);
+            setIsStreaming(false);
+            clearStreamSettleTimeout();
+            done = true;
+            controller.abort();
+            break;
+          }
+        }
+      }
+
+      window.clearTimeout(firstChunkTimeout);
+      clearStreamSettleTimeout();
+
+      if (!controller.signal.aborted && sseBuffer.trim().length > 0) {
+        const pendingEvent = sseBuffer
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trimStart())
+          .join("\n");
+
+        if (pendingEvent && pendingEvent !== "[DONE]") {
+          try {
+            const parsed = JSON.parse(pendingEvent) as { type?: string; text?: string };
+            if (parsed?.type === "token" && typeof parsed.text === "string") {
+              assistantMessage += parsed.text;
+              commitAssistantMessage();
+            }
+          } catch {
+            assistantMessage += pendingEvent;
+            commitAssistantMessage();
+          }
+        }
+      }
+
+      if (!controller.signal.aborted && !sawSseDataFrame && assistantMessage.length === 0 && rawAccumulator.length > 0) {
+        if (DEBUG_CHAT_STREAM && typeof window !== "undefined") {
+          console.debug("[UnifiedChat] raw fallback", {
+            chatType,
+            requestId,
+            rawLength: rawAccumulator.length,
+            rawPreview: rawAccumulator.slice(0, 400),
+          });
+        }
+        assistantMessage = normalizeAssistantStreamText(rawAccumulator);
+        commitAssistantMessage();
+      }
+
+      if (!controller.signal.aborted && assistantMessage.length === 0) {
+        const fallbackText = responseClone ? await responseClone.text().catch(() => "") : "";
+        if (fallbackText.length > 0) {
+          assistantMessage = normalizeAssistantStreamText(fallbackText);
           setMessages((msgs) => {
             if (msgs[msgs.length - 1]?.role !== "assistant") {
               return trimChatHistory([
@@ -223,27 +469,51 @@ export default function UnifiedChat({
             };
             return trimChatHistory(updated);
           });
+          return;
         }
+
+        setLastFailedInput(trimmedInput);
+        setMessages((msgs) => trimChatHistory([
+          ...msgs,
+          {
+            role: "assistant",
+            content: withRequestId("I could not generate a response this time. Please try again."),
+          },
+        ]));
       }
     } catch (error) {
       if (controller.signal.aborted) {
+        if (!firstChunkReceived) {
+          setLastFailedInput(trimmedInput);
+          setMessages((msgs) => trimChatHistory([
+            ...msgs,
+            {
+              role: "assistant",
+              content: withRequestId("The response timed out before arriving. Please retry your message."),
+            },
+          ]));
+        }
         return;
       }
       console.error("Error reading stream:", error);
       setLastFailedInput(trimmedInput);
       setMessages((msgs) => trimChatHistory([
         ...msgs,
-        { role: "assistant", content: "Oops, there was an error responding. You can retry your message." },
+        {
+          role: "assistant",
+          content: withRequestId("Oops, there was an error responding. You can retry your message."),
+        },
       ]));
     } finally {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
-      if (isMountedRef.current && !controller.signal.aborted) {
-        setLoading(false);
+      if (isMountedRef.current) {
+        setIsAwaitingFirstChunk(false);
+        setIsStreaming(false);
       }
     }
-  }, [input, loading, cancelInFlightRequest, messages, setMessages, chatType, pokemon]);
+  }, [input, isBusy, cancelInFlightRequest, messages, setMessages, chatType, pokemon]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -393,7 +663,7 @@ export default function UnifiedChat({
               </div>
             </div>
           ))}
-          {loading && <TypingIndicatorComponent />}
+          {isBusy && <TypingIndicatorComponent />}
         </div>
         <input
           type="text"
@@ -403,19 +673,19 @@ export default function UnifiedChat({
           aria-label="Chat message input"
           placeholder="Ask something..."
           className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-3 mb-2 bg-body-chat text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          disabled={loading}
+          disabled={isBusy}
         />
         <button
           type="button"
           onClick={() => {
             void sendMessage();
           }}
-          disabled={loading}
+          disabled={isBusy}
           className="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600"
         >
-          {loading ? "Talking..." : "Send"}
+          {isBusy ? "Talking..." : "Send"}
         </button>
-        {lastFailedInput && !loading && (
+        {lastFailedInput && !isBusy && (
           <button
             type="button"
             onClick={() => sendMessage(lastFailedInput)}

@@ -3,6 +3,7 @@ import {Pokemon, SearchInputProps} from "@/types/interfaces";
 import {AnimatePresence, motion} from "framer-motion";
 import Link from "next/link";
 import {capitalizeFirstLetter} from "@/utils/capitalizeFirstLetter";
+import { FaTimes } from "react-icons/fa";
 
 export const SearchInput: React.FC<SearchInputProps> = ({
                                                             searchQuery,
@@ -14,6 +15,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
                                                             noMatchesMessage,
                                                             setNoMatchesMessage,
                                                             filteredDropdown,
+                                                            onClear,
                                                             handleDropdownSelect,
                                                         }) => {
     return (
@@ -38,10 +40,21 @@ export const SearchInput: React.FC<SearchInputProps> = ({
                     setHighlightedIndex,
                     setShowDropdown,
                     setNoMatchesMessage,
+                    onClear,
                     handleDropdownSelect
                 })}
-                className="w-full search pl-12 max-w-sm px-4 py-2 rounded-3xl border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                className="w-full search pl-12 pr-12 max-w-sm px-4 py-2 rounded-3xl border border-gray-400 bg-white/95 text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
             />
+            {searchQuery.trim().length > 0 && (
+                <button
+                    type="button"
+                    onClick={onClear}
+                    aria-label="Clear search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-500 transition hover:bg-gray-200 hover:text-gray-900"
+                >
+                    <FaTimes />
+                </button>
+            )}
             <SearchDropdown
                 showDropdown={showDropdown}
                 noMatchesMessage={noMatchesMessage}
@@ -71,6 +84,7 @@ const handleKeyDown = (
         setHighlightedIndex: React.Dispatch<React.SetStateAction<number>>;
         setShowDropdown: (show: boolean) => void;
         setNoMatchesMessage: (message: string | null) => void;
+        onClear: () => void;
         handleDropdownSelect: (pokemon: Pokemon) => void;
     }
 ) => {

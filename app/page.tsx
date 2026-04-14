@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import LandingPage from "../components/home/LandingPage";
 
 export default function Page() {
-    redirect("/pokedex/1");
+    return <LandingPage />;
 }

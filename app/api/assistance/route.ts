@@ -321,11 +321,45 @@ function createStreamResponse(
     metadata: { requestId: string; route: string }
 ) {
     const encoder = new TextEncoder();
+    const encodeSseData = (payload: string) => encoder.encode(`data: ${payload}\n\n`);
+
+    const toChunkText = (value: { choices?: Array<{ delta?: unknown }> }) => {
+        const delta = value?.choices?.[0]?.delta as
+            | {
+                  content?: string | Array<{ text?: string }> | null;
+                  refusal?: string | null;
+              }
+            | undefined;
+
+        const content = (() => {
+            if (!delta) return "";
+            if (typeof delta.content === "string") return delta.content;
+            if (Array.isArray(delta.content)) {
+                return delta.content
+                    .map((part) => (typeof part?.text === "string" ? part.text : ""))
+                    .join("");
+            }
+            return "";
+        })();
+
+        const refusal = typeof delta?.refusal === "string" ? delta.refusal : "";
+
+        if (content) {
+            return { text: content, source: "content" as const };
+        }
+        if (refusal) {
+            return { text: refusal, source: "refusal" as const };
+        }
+        return { text: "", source: "empty" as const };
+    };
 
     const readableStream = new ReadableStream({
         async start(controller) {
             const iterator = stream[Symbol.asyncIterator]();
             let aborted = requestSignal.aborted;
+            let emittedChunks = 0;
+            let emittedChars = 0;
+            let refusalChars = 0;
 
             const handleAbort = () => {
                 aborted = true;
@@ -351,10 +385,18 @@ function createStreamResponse(
                         break;
                     }
 
-                    const chunk = value?.choices?.[0]?.delta?.content ?? "";
-                    if (chunk) {
-                        controller.enqueue(encoder.encode(chunk));
+                    const chunk = toChunkText(value as { choices?: Array<{ delta?: unknown }> });
+                    if (chunk.text) {
+                        emittedChunks += 1;
+                        emittedChars += chunk.text.length;
+                        if (chunk.source === "refusal") {
+                            refusalChars += chunk.text.length;
+                        }
+                        controller.enqueue(encodeSseData(JSON.stringify({ type: "token", text: chunk.text })));
                     }
+                }
+                if (!aborted) {
+                    controller.enqueue(encodeSseData("[DONE]"));
                 }
                 try {
                     controller.close();
@@ -372,6 +414,14 @@ function createStreamResponse(
                     controller.error(error);
                 }
             } finally {
+                logEvent("info", `${metadata.route}.stream_completed`, {
+                    requestId: metadata.requestId,
+                    aborted,
+                    emittedChunks,
+                    emittedChars,
+                    refusalChars,
+                    emptyStream: emittedChars === 0,
+                });
                 requestSignal.removeEventListener("abort", handleAbort);
             }
         },

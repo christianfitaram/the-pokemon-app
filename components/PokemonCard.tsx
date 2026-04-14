@@ -1,9 +1,20 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import {capitalizeFirstLetter} from "@/utils/capitalizeFirstLetter";
 import {Pokemon, PokemonCardProps} from "@/types/interfaces";
 import Link from "next/link";
 import formatDateTime from "../utils/formatDateTime";
 import Image from "next/image";
 import { typeGradients } from "@/utils/typeColors";
+import { PokemonApiClient } from "@/lib/api_clients/pokemonApiClient";
+
+type PokemonCardDetails = {
+    baseExperience: number | null;
+    types: Pokemon["types"];
+};
+
+const pokemonCardCache = new Map<string, PokemonCardDetails>();
 
 const extractPokemonId = (pokemon: Pokemon): number | null => {
     if (typeof pokemon.id === "number" && Number.isInteger(pokemon.id) && pokemon.id > 0) {
@@ -20,12 +31,71 @@ const extractPokemonId = (pokemon: Pokemon): number | null => {
 };
 
 const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = false, isList = false}) => {
-    const primaryType = pokemonOverview.types?.[0]?.type?.name || "normal";
+    const hasCompleteInitialData = typeof pokemonOverview.base_experience === "number" && Array.isArray(pokemonOverview.types) && pokemonOverview.types.length > 0;
+    const [details, setDetails] = useState<PokemonCardDetails>({
+        baseExperience: pokemonOverview.base_experience ?? null,
+        types: pokemonOverview.types,
+    });
+    const [isHydrating, setIsHydrating] = useState(!hasCompleteInitialData);
+
+    useEffect(() => {
+        const cacheKey = pokemonOverview.name.toLowerCase();
+        const cachedDetails = pokemonCardCache.get(cacheKey);
+        if (cachedDetails) {
+            setDetails(cachedDetails);
+            setIsHydrating(false);
+            return;
+        }
+
+        if (hasCompleteInitialData) {
+            const nextDetails = {
+                baseExperience: pokemonOverview.base_experience ?? null,
+                types: pokemonOverview.types,
+            };
+            pokemonCardCache.set(cacheKey, nextDetails);
+            setDetails(nextDetails);
+            setIsHydrating(false);
+            return;
+        }
+
+        let isCancelled = false;
+        setIsHydrating(true);
+
+        const hydratePokemonCard = async () => {
+            const response = await PokemonApiClient.getPokemonByName(pokemonOverview.name);
+            if (isCancelled || !response.success || !response.data) {
+                if (!isCancelled) {
+                    setIsHydrating(false);
+                }
+                return;
+            }
+
+            const nextDetails = {
+                baseExperience: response.data.base_experience,
+                types: response.data.types,
+            };
+            pokemonCardCache.set(cacheKey, nextDetails);
+            setDetails(nextDetails);
+            if (!isCancelled) {
+                setIsHydrating(false);
+            }
+        };
+
+        hydratePokemonCard();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [pokemonOverview.name, pokemonOverview.base_experience, pokemonOverview.types, hasCompleteInitialData]);
+
+    const displayTypes = details.types ?? pokemonOverview.types;
+    const primaryType = displayTypes?.[0]?.type?.name || "normal";
     const gradientClass = typeGradients[primaryType] || typeGradients.normal;
     const pokemonId = extractPokemonId(pokemonOverview);
     const imgURL = pokemonId
         ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`
         : "/sprites/question-mark.png";
+    const displayExp = details.baseExperience ?? pokemonOverview.base_experience ?? "-";
 
     return (
         <Link
@@ -39,7 +109,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = fa
             <div
                 className={`absolute left-0 top-0 w-full h-1/4 bg-gradient-to-l ${gradientClass} opacity-75 rounded-tr-3xl rounded-bl-3xl pt-2 text-gray-200 z-0`}
             >
-                <span className="!text-white z-10">EXP: {pokemonOverview.base_experience ?? "-"}</span>
+                <span className="!text-white z-10">{isHydrating ? "Loading EXP..." : `EXP: ${displayExp}`}</span>
             </div>
 
             {/* Semi-Transparent Dark Overlay to Further Dim */}
@@ -61,7 +131,7 @@ const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = fa
                     </h5>
                     <div className="flex flex-col gap-4">
                         <div className="flex gap-2 flex-wrap justify-center">
-                            {pokemonOverview.types?.map((type, typeIndex) => (
+                            {displayTypes?.map((type, typeIndex) => (
                                 <span
                                     key={typeIndex}
                                     className="bg-gray-700 text-white text-xs font-medium px-2 py-1 rounded-md"
@@ -78,6 +148,21 @@ const PokemonCard: React.FC<PokemonCardProps> = ({pokemonOverview, isActive = fa
                     </div>
                 </div>
             </div>
+
+            {isHydrating && (
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 rounded-tr-3xl rounded-bl-3xl bg-slate-950/35 backdrop-blur-[1px]">
+                    <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center text-white/90">
+                        <div className="h-40 w-40 rounded-full bg-white/10 animate-pulse" />
+                        <div className="flex w-full flex-col items-center gap-3">
+                            <div className="h-4 w-28 rounded-full bg-white/10 animate-pulse" />
+                            <div className="flex gap-2">
+                                <div className="h-6 w-14 rounded-md bg-white/10 animate-pulse" />
+                                <div className="h-6 w-14 rounded-md bg-white/10 animate-pulse" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Link>
     );
 };

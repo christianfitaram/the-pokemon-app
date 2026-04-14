@@ -157,12 +157,14 @@ export interface SearchInputProps {
     noMatchesMessage: string | null;
     setNoMatchesMessage: (message: string | null) => void;
     filteredDropdown: Pokemon[];
+    onClear: () => void;
     handleDropdownSelect: (pokemon: Pokemon) => void;
 }
 
 export interface SelectedTypesProps {
     selectedTypes: string[];
     removeType: (type: string) => void;
+    onClearAll?: () => void;
 }
 
 export interface TypeApiResponse {

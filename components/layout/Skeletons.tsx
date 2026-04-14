@@ -36,7 +36,7 @@ export function SkeletonPokemonList() {
 
 export const PokemonDetailsSkeleton: React.FC = () => {
     return (
-        <div className="flex flex-col items-center space-y-6 min-h-[85vh] py-6 gap-6">
+        <div className="flex flex-col items-center space-y-6 min-h-[85vh] py-6 gap-6 mt-8">
             <div className="flex flex-col lg:flex-row items-center justify-center gap-8 max-w-5xl w-full px-4 flex-1">
                 {/* Image Placeholder */}
                 <motion.div

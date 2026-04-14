@@ -50,7 +50,8 @@ jest.mock("@/lib/api_clients/pokemonApiClient", () => ({
 
 function buildStreamResponse(chunk: string): Response {
   let sent = false;
-  const value = Uint8Array.from(chunk.split("").map((char) => char.charCodeAt(0)));
+  const sse = `data: ${JSON.stringify({ type: "token", text: chunk })}\n\ndata: [DONE]\n\n`;
+  const value = Uint8Array.from(sse.split("").map((char) => char.charCodeAt(0)));
 
   return {
     body: {
@@ -63,6 +64,189 @@ function buildStreamResponse(chunk: string): Response {
           return { value: undefined, done: true };
         },
       }),
+    },
+    headers: {
+      get: (name: string) => {
+        if (name.toLowerCase() === "content-type") {
+          return "text/event-stream";
+        }
+        if (name.toLowerCase() === "x-request-id") {
+          return "test-request-id";
+        }
+        return null;
+      },
+    },
+  } as unknown as Response;
+}
+
+function buildSseDoneWithoutNaturalCloseResponse(chunk: string): Response {
+  const payloads = [
+    `data: ${JSON.stringify({ type: "token", text: chunk })}\n\n`,
+    "data: [DONE]\n\n",
+  ].map((entry) => Uint8Array.from(entry.split("").map((char) => char.charCodeAt(0))));
+
+  let readIndex = 0;
+  let canceled = false;
+
+  return {
+    body: {
+      getReader: () => ({
+        read: async () => {
+          if (canceled) {
+            return { value: undefined, done: true };
+          }
+          if (readIndex < payloads.length) {
+            const value = payloads[readIndex];
+            readIndex += 1;
+            return { value, done: false };
+          }
+          return new Promise(() => {
+            // Intentionally pending: the client should stop based on explicit done signal.
+          });
+        },
+        cancel: async () => {
+          canceled = true;
+        },
+      }),
+    },
+    headers: {
+      get: (name: string) => {
+        if (name.toLowerCase() === "content-type") {
+          return "text/event-stream";
+        }
+        if (name.toLowerCase() === "x-request-id") {
+          return "test-request-id";
+        }
+        return null;
+      },
+    },
+  } as unknown as Response;
+}
+
+function buildFragmentedSseResponse(chunk: string): Response {
+  const fragmentedEntries = [
+    "da",
+    `ta: ${JSON.stringify({ type: "token", text: chunk })}\n`,
+    "\n",
+    "data",
+    ": [DONE]",
+    "\n\n",
+  ].map((entry) => Uint8Array.from(entry.split("").map((char) => char.charCodeAt(0))));
+
+  let readIndex = 0;
+
+  return {
+    body: {
+      getReader: () => ({
+        read: async () => {
+          if (readIndex < fragmentedEntries.length) {
+            const value = fragmentedEntries[readIndex];
+            readIndex += 1;
+            return { value, done: false };
+          }
+          return { value: undefined, done: true };
+        },
+      }),
+    },
+    headers: {
+      get: (name: string) => {
+        if (name.toLowerCase() === "content-type") {
+          return "text/event-stream";
+        }
+        if (name.toLowerCase() === "x-request-id") {
+          return "test-request-id";
+        }
+        return null;
+      },
+    },
+  } as unknown as Response;
+}
+
+function buildFragmentedSseResponseWithoutContentType(chunk: string): Response {
+  const fragmentedEntries = [
+    "da",
+    `ta: ${JSON.stringify({ type: "token", text: chunk })}\n`,
+    "\n",
+    "data",
+    ": [DONE]",
+    "\n\n",
+  ].map((entry) => Uint8Array.from(entry.split("").map((char) => char.charCodeAt(0))));
+
+  let readIndex = 0;
+
+  return {
+    body: {
+      getReader: () => ({
+        read: async () => {
+          if (readIndex < fragmentedEntries.length) {
+            const value = fragmentedEntries[readIndex];
+            readIndex += 1;
+            return { value, done: false };
+          }
+          return { value: undefined, done: true };
+        },
+      }),
+    },
+    headers: {
+      get: (name: string) => {
+        if (name.toLowerCase() === "x-request-id") {
+          return "test-request-id";
+        }
+        return null;
+      },
+    },
+  } as unknown as Response;
+}
+
+function buildEmptyStreamResponse(fallbackText: string): Response {
+  return {
+    body: {
+      getReader: () => ({
+        read: async () => ({ value: undefined, done: true }),
+      }),
+    },
+    clone: () => ({
+      text: async () => fallbackText,
+    }),
+    headers: {
+      get: (name: string) => {
+        if (name.toLowerCase() === "content-type") {
+          return "text/event-stream";
+        }
+        if (name.toLowerCase() === "x-request-id") {
+          return "test-request-id";
+        }
+        return null;
+      },
+    },
+  } as unknown as Response;
+}
+
+function buildCloneFallbackSseResponse(): Response {
+  const rawSse =
+    `data: ${JSON.stringify({ type: "token", text: "Fallback " })}\n\n` +
+    `data: ${JSON.stringify({ type: "token", text: "decoded" })}\n\n` +
+    "data: [DONE]\n\n";
+
+  return {
+    body: {
+      getReader: () => ({
+        read: async () => ({ value: undefined, done: true }),
+      }),
+    },
+    clone: () => ({
+      text: async () => rawSse,
+    }),
+    headers: {
+      get: (name: string) => {
+        if (name.toLowerCase() === "content-type") {
+          return "text/event-stream";
+        }
+        if (name.toLowerCase() === "x-request-id") {
+          return "test-request-id";
+        }
+        return null;
+      },
     },
   } as unknown as Response;
 }
@@ -119,5 +303,215 @@ describe("UnifiedChat history cap", () => {
     expect(historyLengths.length).toBe(35);
     expect(Math.max(...historyLengths)).toBeLessThanOrEqual(30);
     expect(historyLengths[historyLengths.length - 1]).toBe(30);
+  });
+
+  it("renders buffered streamed text when the live reader yields no chunks", async () => {
+    const [{ default: UnifiedChat }, { chatApi }] = await Promise.all([
+      import("@/components/chat/UnifiedChat"),
+      import("@/lib/api_clients/pokemonApiClient"),
+    ]);
+
+    const assistantMock = chatApi.assistant as jest.Mock;
+    assistantMock.mockResolvedValue(buildEmptyStreamResponse("buffered reply"));
+
+    function AssistantHarness() {
+      const [messages, setMessages] = useState<ChatMessage[]>([
+        { role: "assistant", content: "How can I help you?" },
+      ]);
+
+      return (
+        <UnifiedChat
+          chatType="assistant"
+          onClose={() => {}}
+          messages={messages}
+          setMessages={setMessages}
+        />
+      );
+    }
+
+    const { container } = render(<AssistantHarness />);
+
+    const input = screen.getByLabelText("Chat message input");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByText("buffered reply")).toBeInTheDocument();
+    expect(screen.queryByText(/could not generate a response/i)).not.toBeInTheDocument();
+    expect(container.querySelector(".typing-indicator")).toBeNull();
+  });
+
+  it("clears typing state on explicit SSE done even when stream stays open", async () => {
+    const [{ default: UnifiedChat }, { chatApi }] = await Promise.all([
+      import("@/components/chat/UnifiedChat"),
+      import("@/lib/api_clients/pokemonApiClient"),
+    ]);
+
+    const assistantMock = chatApi.assistant as jest.Mock;
+    assistantMock.mockResolvedValue(buildSseDoneWithoutNaturalCloseResponse("stream-complete"));
+
+    function AssistantHarness() {
+      const [messages, setMessages] = useState<ChatMessage[]>([
+        { role: "assistant", content: "How can I help you?" },
+      ]);
+
+      return (
+        <UnifiedChat
+          chatType="assistant"
+          onClose={() => {}}
+          messages={messages}
+          setMessages={setMessages}
+        />
+      );
+    }
+
+    const { container } = render(<AssistantHarness />);
+
+    const input = screen.getByLabelText("Chat message input");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByText("stream-complete")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector(".typing-indicator")).toBeNull();
+    });
+  });
+
+  it("parses fragmented SSE frames from stream chunks", async () => {
+    const [{ default: UnifiedChat }, { chatApi }] = await Promise.all([
+      import("@/components/chat/UnifiedChat"),
+      import("@/lib/api_clients/pokemonApiClient"),
+    ]);
+
+    const assistantMock = chatApi.assistant as jest.Mock;
+    assistantMock.mockResolvedValue(buildFragmentedSseResponse("fragment-ok"));
+
+    function AssistantHarness() {
+      const [messages, setMessages] = useState<ChatMessage[]>([
+        { role: "assistant", content: "How can I help you?" },
+      ]);
+
+      return (
+        <UnifiedChat
+          chatType="assistant"
+          onClose={() => {}}
+          messages={messages}
+          setMessages={setMessages}
+        />
+      );
+    }
+
+    const { container } = render(<AssistantHarness />);
+
+    const input = screen.getByLabelText("Chat message input");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByText("fragment-ok")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector(".typing-indicator")).toBeNull();
+    });
+  });
+
+  it("parses fragmented SSE frames even when content-type header is missing", async () => {
+    const [{ default: UnifiedChat }, { chatApi }] = await Promise.all([
+      import("@/components/chat/UnifiedChat"),
+      import("@/lib/api_clients/pokemonApiClient"),
+    ]);
+
+    const assistantMock = chatApi.assistant as jest.Mock;
+    assistantMock.mockResolvedValue(buildFragmentedSseResponseWithoutContentType("headerless-ok"));
+
+    function AssistantHarness() {
+      const [messages, setMessages] = useState<ChatMessage[]>([
+        { role: "assistant", content: "How can I help you?" },
+      ]);
+
+      return (
+        <UnifiedChat
+          chatType="assistant"
+          onClose={() => {}}
+          messages={messages}
+          setMessages={setMessages}
+        />
+      );
+    }
+
+    const { container } = render(<AssistantHarness />);
+
+    const input = screen.getByLabelText("Chat message input");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByText("headerless-ok")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector(".typing-indicator")).toBeNull();
+    });
+  });
+
+  it("normalizes raw SSE fallback text from response clone", async () => {
+    const [{ default: UnifiedChat }, { chatApi }] = await Promise.all([
+      import("@/components/chat/UnifiedChat"),
+      import("@/lib/api_clients/pokemonApiClient"),
+    ]);
+
+    const assistantMock = chatApi.assistant as jest.Mock;
+    assistantMock.mockResolvedValue(buildCloneFallbackSseResponse());
+
+    function AssistantHarness() {
+      const [messages, setMessages] = useState<ChatMessage[]>([
+        { role: "assistant", content: "How can I help you?" },
+      ]);
+
+      return (
+        <UnifiedChat
+          chatType="assistant"
+          onClose={() => {}}
+          messages={messages}
+          setMessages={setMessages}
+        />
+      );
+    }
+
+    render(<AssistantHarness />);
+
+    const input = screen.getByLabelText("Chat message input");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(await screen.findByText("Fallback decoded")).toBeInTheDocument();
+    expect(screen.queryByText(/data:\s*\{/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\[DONE\]/i)).not.toBeInTheDocument();
+  });
+
+  it("sanitizes raw SSE envelopes at render time", async () => {
+    const [{ default: UnifiedChat }] = await Promise.all([
+      import("@/components/chat/UnifiedChat"),
+    ]);
+
+    function AssistantHarness() {
+      const [messages, setMessages] = useState<ChatMessage[]>([
+        {
+          role: "assistant",
+          content:
+            `data: ${JSON.stringify({ type: "token", text: "Rendered text" })}\n\n` +
+            "data: [DONE]\n\n",
+        },
+      ]);
+
+      return (
+        <UnifiedChat
+          chatType="assistant"
+          onClose={() => {}}
+          messages={messages}
+          setMessages={setMessages}
+        />
+      );
+    }
+
+    render(<AssistantHarness />);
+
+    expect(await screen.findByText("Rendered text")).toBeInTheDocument();
+    expect(screen.queryByText(/data:\s*\{/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\[DONE\]/i)).not.toBeInTheDocument();
   });
 });

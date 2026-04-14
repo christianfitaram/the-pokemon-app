@@ -39,6 +39,12 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
             >
                 Get AI Help
             </button>
+            <Link
+                href="/team-builder"
+                className="border p-2 rounded-lg text-white hover:bg-gray-700 transition-transform duration-300 ease-in-out hover:scale-105"
+            >
+                Team Builder
+            </Link>
         </div>
     );
 };

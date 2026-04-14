@@ -122,7 +122,7 @@ export default function PokemonDetailsClient({
   if (errorMessage) {
     return (
       <MainLayout>
-        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 px-4">
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 px-4 mt-8">
           <h2 className="text-2xl font-bold text-white">Pokemon details unavailable</h2>
           <p className="text-gray-300 text-center max-w-lg">{errorMessage}</p>
           <div className="flex flex-row gap-3">
@@ -153,7 +153,7 @@ export default function PokemonDetailsClient({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         data-testid="pokemon-details"
-        className="flex flex-col items-center space-y-6 gradient min-h-screen gap-10"
+        className="flex flex-col items-center space-y-6 gradient min-h-screen gap-10 mt-8"
         style={
           {
             "--gradient-color": uiTheme?.backgroundColor,

@@ -15,6 +15,7 @@ export function PaginationBar({
 
     const [batchSize, setBatchSize] = useState(10);
     const [batchStart, setBatchStart] = useState(0);
+    const [jumpTarget, setJumpTarget] = useState(String(safeCurrent + 1));
 
     // Adjust batch size based on screen width
     useEffect(() => {
@@ -43,6 +44,7 @@ export function PaginationBar({
         // Do not recenter on manual batch browsing (<< / >> clicks).
         const start = Math.floor(safeCurrent / batchSize) * batchSize;
         setBatchStart(start);
+        setJumpTarget(String(safeCurrent + 1));
     }, [safeCurrent, batchSize]);
 
     const batchEnd = Math.min(batchStart + batchSize, safeTotal);
@@ -56,8 +58,47 @@ export function PaginationBar({
         setBatchStart(newStart);
     };
 
+    const commitJump = () => {
+        const parsed = Number(jumpTarget);
+        if (!Number.isInteger(parsed)) return;
+        const nextPage = parsed - 1;
+        if (nextPage >= 0 && nextPage < safeTotal) {
+            setCurrentPage?.(nextPage);
+        }
+    };
+
     return (
-        <div className="flex flex-row w-full items-center justify-center gap-4 p-4 flex-wrap">
+        <div className="flex w-full flex-col items-center justify-center gap-4 rounded-3xl border border-white/10 bg-slate-950/30 p-4 shadow-lg">
+            <div className="flex w-full flex-wrap items-center justify-between gap-3 px-2 text-sm text-slate-200">
+                <p>Page {safeCurrent + 1} of {safeTotal}</p>
+                <div className="flex items-center gap-2">
+                    <label htmlFor="pagination-jump" className="text-slate-300">Jump to</label>
+                    <input
+                        id="pagination-jump"
+                        type="number"
+                        min={1}
+                        max={safeTotal}
+                        value={jumpTarget}
+                        onChange={(event) => setJumpTarget(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                                event.preventDefault();
+                                commitJump();
+                            }
+                        }}
+                        className="w-20 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-center text-white outline-none ring-0 focus:border-sky-400"
+                    />
+                    <button
+                        type="button"
+                        onClick={commitJump}
+                        className="rounded-full border border-sky-400/40 px-3 py-1 text-sky-200 transition hover:bg-sky-400/10"
+                    >
+                        Go
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex flex-row w-full items-center justify-center gap-4 flex-wrap">
             {/* Page-by-page left */}
             <button
                 type="button"
@@ -140,6 +181,7 @@ export function PaginationBar({
             >
                 <ChevronRight aria-hidden="true" />
             </button>
+            </div>
         </div>
     );
 }
