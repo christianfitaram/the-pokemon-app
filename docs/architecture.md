@@ -109,4 +109,4 @@ flowchart TB
 - Tradeoff: provider abstraction increases flexibility but adds configuration surface area.
 - Next milestone: add visual tracing dashboard examples (latency and error budgets).
 - Next milestone: expand E2E coverage across chat, team-builder, and Pokedex workflows.
-- Next milestone: publish release notes/changelog process to strengthen portfolio communication.
+

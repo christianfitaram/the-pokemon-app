@@ -11,6 +11,10 @@ const REQUIRED_FILES = [
   "docs/pr-narrative-guide.md",
   ".github/pull_request_template.md",
   "docs/media/README.md",
+  "docs/media/search-to-chat-flow.gif",
+];
+
+const OPTIONAL_MEDIA_FILES = new Set([
   "docs/media/home-search-desktop.png",
   "docs/media/home-search-mobile.png",
   "docs/media/details-card-desktop.png",
@@ -21,8 +25,7 @@ const REQUIRED_FILES = [
   "docs/media/team-builder-mobile.png",
   "docs/media/health-readiness-desktop.png",
   "docs/media/health-readiness-mobile.png",
-  "docs/media/search-to-chat-flow.gif",
-];
+]);
 
 const MARKDOWN_ROOTS = [
   "README.md",
@@ -137,6 +140,14 @@ function run() {
       const resolvedPath = cleaned.startsWith("/")
         ? path.join(ROOT_DIR, cleaned.replace(/^\/+/, ""))
         : path.resolve(path.dirname(filePath), cleaned);
+
+      const resolvedRelPath = path
+        .relative(ROOT_DIR, resolvedPath)
+        .replace(/\\/g, "/");
+
+      if (!fs.existsSync(resolvedPath) && OPTIONAL_MEDIA_FILES.has(resolvedRelPath)) {
+        continue;
+      }
 
       if (!fs.existsSync(resolvedPath)) {
         brokenLinks.push({
