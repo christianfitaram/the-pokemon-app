@@ -9,6 +9,13 @@ import {
     getChatModelCandidates,
     getEmbeddingModelCandidates,
 } from "@/lib/ai/provider";
+import { elapsedMs, incrementCounter, logEvent, observeDuration, startTimer } from "@/lib/observability";
+import {
+    appendRateLimitHeaders,
+    buildRateLimitExceededResponse,
+    consumeRateLimit,
+    getClientAddress,
+} from "@/lib/security/rateLimit";
 
 type StatCondition = {
     stat: string;
@@ -310,7 +317,8 @@ async function createChatStreamWithFallback(
 
 function createStreamResponse(
     requestSignal: AbortSignal,
-    stream: AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>
+    stream: AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>,
+    metadata: { requestId: string; route: string }
 ) {
     const encoder = new TextEncoder();
 
@@ -321,6 +329,11 @@ function createStreamResponse(
 
             const handleAbort = () => {
                 aborted = true;
+                const abortCount = incrementCounter(`${metadata.route}.aborts`);
+                logEvent("warn", `${metadata.route}.stream_abort`, {
+                    requestId: metadata.requestId,
+                    abortCount,
+                });
                 void iterator.return?.();
                 try {
                     controller.close();
@@ -343,11 +356,19 @@ function createStreamResponse(
                         controller.enqueue(encoder.encode(chunk));
                     }
                 }
-                if (!aborted) {
+                try {
                     controller.close();
+                } catch {
+                    // Ignore close errors on already closed stream.
                 }
             } catch (error) {
                 if (!aborted) {
+                    const streamErrorCount = incrementCounter(`${metadata.route}.stream_errors`);
+                    logEvent("error", `${metadata.route}.stream_error`, {
+                        requestId: metadata.requestId,
+                        streamErrorCount,
+                        message: error instanceof Error ? error.message : String(error),
+                    });
                     controller.error(error);
                 }
             } finally {
@@ -361,17 +382,26 @@ function createStreamResponse(
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
             Connection: "keep-alive",
+            "X-Request-Id": metadata.requestId,
         },
     });
 }
 
 export async function POST(req: NextRequest) {
+    const route = "api.assistance";
+    const requestId = crypto.randomUUID();
+    const startedAt = startTimer();
     const origin = req.headers.get("origin");
     if (!origin || !isOriginAllowed(origin)) {
         return Response.json(
             { error: !origin ? "Origin header required for this endpoint" : "Unauthorized origin" },
             { status: 403 }
         );
+    }
+
+    const rateLimitResult = await consumeRateLimit(`assistance:${getClientAddress(req)}`, 60_000, 60);
+    if (!rateLimitResult.allowed) {
+        return buildRateLimitExceededResponse(rateLimitResult);
     }
 
     const rawBody = await req.json().catch(() => null);
@@ -395,40 +425,67 @@ export async function POST(req: NextRequest) {
     const normalizedChatHistory = safeChatHistory.length
         ? safeChatHistory
         : [{ role: "user" as const, content: userMessage }];
-    const aiClient = getAIClient();
+    try {
+        const aiClient = getAIClient();
 
-    // Step 1: Prefer structured retrieval for characteristic queries; fallback to semantic retrieval.
-    const structuredFilters = extractStructuredFilters(userMessage);
-    const usedStructured = hasStructuredFilters(structuredFilters);
-    const pokemons = usedStructured
-        ? await getStructuredMatches(structuredFilters)
-        : await getSemanticMatches(aiClient, userMessage);
+        // Step 1: Prefer structured retrieval for characteristic queries; fallback to semantic retrieval.
+        const structuredFilters = extractStructuredFilters(userMessage);
+        const usedStructured = hasStructuredFilters(structuredFilters);
+        const pokemons = usedStructured
+            ? await getStructuredMatches(structuredFilters)
+            : await getSemanticMatches(aiClient, userMessage);
 
-    const finalPokemons = pokemons.length === 0 && usedStructured
-        ? await getSemanticMatches(aiClient, userMessage)
-        : pokemons;
+        const finalPokemons = pokemons.length === 0 && usedStructured
+            ? await getSemanticMatches(aiClient, userMessage)
+            : pokemons;
 
-    // Step 3: Compose the assistant's understanding with RAG context
-    const messages: ChatCompletionMessageParam[] = [
-        {
-            role: "system",
-            content: "You are a helpful assistant specialized in Pokémon knowledge. Use the provided context to answer user questions with accurate, relevant Pokémon matches.",
-        },
-        {
-            role: "system",
-            content: finalPokemons.length
-                ? `Retrieved Pokemon context (${usedStructured ? "structured-first" : "semantic"}):\n\n${finalPokemons.map((p) => formatPokemonForContext(p)).join("\n\n")}`
-                : "No matching Pokémon found.",
+        // Step 3: Compose the assistant's understanding with RAG context
+        const messages: ChatCompletionMessageParam[] = [
+            {
+                role: "system",
+                content: "You are a helpful assistant specialized in Pokémon knowledge. Use the provided context to answer user questions with accurate, relevant Pokémon matches.",
+            },
+            {
+                role: "system",
+                content: finalPokemons.length
+                    ? `Retrieved Pokemon context (${usedStructured ? "structured-first" : "semantic"}):\n\n${finalPokemons.map((p) => formatPokemonForContext(p)).join("\n\n")}`
+                    : "No matching Pokémon found.",
 
-        },
-        ...normalizedChatHistory.map((message) => ({
-            role: message.role,
-            content: message.content,
-        })),
-    ];
+            },
+            ...normalizedChatHistory.map((message) => ({
+                role: message.role,
+                content: message.content,
+            })),
+        ];
 
-    // Step 4: Stream GPT-4o-mini response
-    const stream = await createChatStreamWithFallback(aiClient, messages);
+        // Step 4: Stream model response.
+        const stream = await createChatStreamWithFallback(aiClient, messages);
+        const durationMs = elapsedMs(startedAt);
+        observeDuration(`${route}.duration_ms`, durationMs, { outcome: "success" });
+        const successCount = incrementCounter(`${route}.success`);
+        logEvent("info", `${route}.success`, {
+            requestId,
+            successCount,
+            usedStructured,
+            contextCount: finalPokemons.length,
+            durationMs,
+        });
 
-    return createStreamResponse(req.signal, stream);
+        const response = createStreamResponse(req.signal, stream, { requestId, route });
+        appendRateLimitHeaders(response.headers, rateLimitResult);
+        return response;
+    } catch (error) {
+        const durationMs = elapsedMs(startedAt);
+        observeDuration(`${route}.duration_ms`, durationMs, { outcome: "error" });
+        const errorCount = incrementCounter(`${route}.errors`);
+        logEvent("error", `${route}.error`, {
+            requestId,
+            errorCount,
+            durationMs,
+            message: error instanceof Error ? error.message : String(error),
+        });
+        const response = Response.json({ error: "Assistant request failed" }, { status: 500 });
+        appendRateLimitHeaders(response.headers, rateLimitResult);
+        return response;
+    }
 }

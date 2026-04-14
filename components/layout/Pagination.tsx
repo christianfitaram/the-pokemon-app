@@ -59,22 +59,29 @@ export function PaginationBar({
     return (
         <div className="flex flex-row w-full items-center justify-center gap-4 p-4 flex-wrap">
             {/* Page-by-page left */}
-            <ChevronLeft
-                className="cursor-pointer"
+            <button
+                type="button"
+                aria-label="Previous page"
+                disabled={!setCurrentPage || safeCurrent <= 0}
+                className="rounded p-1 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600"
                 onClick={() => {
                     if (setCurrentPage && safeCurrent > 0) {
                         setCurrentPage(safeCurrent - 1);
                     }
                 }}
                 data-testid="prev-page"
-            />
+            >
+                <ChevronLeft aria-hidden="true" />
+            </button>
 
             {/* Batch left arrow */}
             {batchStart > 0 && (
                 <button
+                    type="button"
                     className="px-2 py-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                     onClick={() => goToBatch('prev')}
                     data-testid="prev-batch"
+                    aria-label="Previous page group"
                 >
                     &laquo;
                 </button>
@@ -84,11 +91,14 @@ export function PaginationBar({
             {Array.from({length: batchEnd - batchStart}, (_, index) => {
                 const pageIndex = batchStart + index;
                 return (
-                    <div
+                    <button
+                        type="button"
                         onClick={() => setCurrentPage?.(pageIndex)}
                         key={pageIndex}
                         className="mx-1 min-w-10"
                         data-testid={`page-${pageIndex}`}
+                        aria-label={`Go to page ${pageIndex + 1}`}
+                        aria-current={safeCurrent === pageIndex ? "page" : undefined}
                     >
                         <span className={
                             (safeCurrent === pageIndex
@@ -98,31 +108,38 @@ export function PaginationBar({
                         }>
             {pageIndex + 1}
                         </span>
-                    </div>
+                    </button>
                 );
             })}
 
             {/* Batch right arrow */}
             {batchEnd < safeTotal && (
                 <button
+                    type="button"
                     className="px-2 py-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                     onClick={() => goToBatch('next')}
                     data-testid="next-batch"
+                    aria-label="Next page group"
                 >
                     &raquo;
                 </button>
             )}
 
             {/* Page-by-page right */}
-            <ChevronRight
-                className="cursor-pointer"
+            <button
+                type="button"
+                aria-label="Next page"
+                disabled={!setCurrentPage || safeCurrent >= safeTotal - 1}
+                className="rounded p-1 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-600"
                 onClick={() => {
                     if (setCurrentPage && safeCurrent < safeTotal - 1) {
                         setCurrentPage(safeCurrent + 1);
                     }
                 }}
                 data-testid="next-page"
-            />
+            >
+                <ChevronRight aria-hidden="true" />
+            </button>
         </div>
     );
 }

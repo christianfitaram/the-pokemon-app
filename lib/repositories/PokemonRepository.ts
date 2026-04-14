@@ -71,50 +71,8 @@ export class PokemonRepository {
         this.enforceMemoryCacheSize();
     }
 
-    private static async mapWithConcurrency<T, R>(
-        items: T[],
-        concurrency: number,
-        mapper: (item: T) => Promise<R>
-    ): Promise<R[]> {
-        const safeConcurrency = Math.max(1, Math.min(concurrency, items.length || 1));
-        const result: R[] = new Array(items.length);
-        let index = 0;
-
-        const workers = new Array(safeConcurrency).fill(null).map(async () => {
-            while (index < items.length) {
-                const currentIndex = index++;
-                result[currentIndex] = await mapper(items[currentIndex]);
-            }
-        });
-
-        await Promise.all(workers);
-        return result;
-    }
-
-    private static async enrichPokemonList(results: Pokemon[]): Promise<Pokemon[]> {
-        return this.mapWithConcurrency(results, 6, async (pokemon) => {
-            try {
-                const details = await this.getPokemonByName(pokemon.name);
-                return {
-                    ...pokemon,
-                    id: details.id,
-                    types: details.types,
-                    base_experience: details.base_experience,
-                };
-            } catch {
-                return pokemon;
-            }
-        });
-    }
-
     private static async getPokemonPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
         return this.fetchWithErrorHandling(`${BASE_URL}/pokemon?offset=${offset}&limit=${limit}`);
-    }
-
-    private static async getEnrichedPokemonPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
-        const response = await this.getPokemonPage(offset, limit);
-        const enriched = await this.enrichPokemonList(response.results);
-        return { ...response, results: enriched };
     }
 
     static async fetchWithErrorHandling(url: string, retries = 3, delay = 1000) {
@@ -179,16 +137,16 @@ export class PokemonRepository {
     }
 
     static async getPokemonsFirstPage(): Promise<PokemonListResponse> {
-        return this.getEnrichedPokemonPage(0, 24);
+        return this.getPokemonPage(0, 24);
     }
 
     static async getPokemonsLastPage(n: string): Promise<PokemonListResponse> {
         const offset = Number(n);
-        return this.getEnrichedPokemonPage(Number.isFinite(offset) ? offset : 0, 24);
+        return this.getPokemonPage(Number.isFinite(offset) ? offset : 0, 24);
     }
 
     static async getPokemonsCustomPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
-        return this.getEnrichedPokemonPage(offset, limit);
+        return this.getPokemonPage(offset, limit);
     }
 
     static async getPokemonByName(name: string): Promise<PokemonDetails> {

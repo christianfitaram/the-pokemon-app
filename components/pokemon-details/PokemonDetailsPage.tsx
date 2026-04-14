@@ -30,6 +30,8 @@ export default function PokemonDetailsClient({
   const [enrichedPokemon, setEnrichedPokemon] = useState<EnrichedPokemonData | null>(null);
   const [showPokemonChat, setShowPokemonChat] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const router = useRouter();
   const [uiTheme, setUItheme] = useState<uiThemePokemon>();
   const [gradientClass, setGradientClass] = useState<string | null>(null);
@@ -43,6 +45,7 @@ export default function PokemonDetailsClient({
     const fetchPokemonDetails = async () => {
       setLoading(true);
       setEnrichedPokemon(null);
+      setErrorMessage(null);
 
       try {
         const normalizedNumber = number.toLowerCase();
@@ -57,6 +60,11 @@ export default function PokemonDetailsClient({
 
         if (!pokemonResponse.success || !pokemonResponse.data) {
           if (!isCancelled) {
+            const errorText = pokemonResponse.error || "Unable to load Pokemon details";
+            const isNotFoundError = errorText.includes("404");
+            if (!isNotFoundError) {
+              setErrorMessage(errorText);
+            }
             setPokemon(null);
             setEnrichedPokemon(null);
           }
@@ -78,6 +86,7 @@ export default function PokemonDetailsClient({
       } catch (error) {
         if (!isCancelled) {
           console.error("Failed to fetch Pokemon details", error);
+          setErrorMessage("Could not load Pokemon details. Please retry.");
           setPokemon(null);
           setEnrichedPokemon(null);
         }
@@ -92,7 +101,7 @@ export default function PokemonDetailsClient({
     return () => {
       isCancelled = true;
     };
-  }, [number, savePokemon, initialPokemon]);
+  }, [number, savePokemon, initialPokemon, retryNonce]);
 
   //Lets passing the gradient for the background and UI elements
 
@@ -110,6 +119,32 @@ export default function PokemonDetailsClient({
     }
   }, [pokemon]);
   if (loading) return <PokemonDetailsSkeleton />;
+  if (errorMessage) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 px-4">
+          <h2 className="text-2xl font-bold text-white">Pokemon details unavailable</h2>
+          <p className="text-gray-300 text-center max-w-lg">{errorMessage}</p>
+          <div className="flex flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => setRetryNonce((value) => value + 1)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="border border-gray-400 text-gray-100 px-4 py-2 rounded hover:bg-gray-700"
+            >
+              Go Home
+            </button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
   if (!pokemon) return notFound();
   return (
     <MainLayout>

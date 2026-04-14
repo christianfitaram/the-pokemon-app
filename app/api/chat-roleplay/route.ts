@@ -6,6 +6,13 @@ import { normalizePokemonName, roleplayRequestSchema } from "@/lib/validation/ai
 import { getAIClient, getChatModelCandidates } from "@/lib/ai/provider";
 import { PokemonRepository } from "@/lib/repositories/PokemonRepository";
 import type { PokemonComplete } from "@/types/chatTypes";
+import { elapsedMs, incrementCounter, logEvent, observeDuration, startTimer } from "@/lib/observability";
+import {
+    appendRateLimitHeaders,
+    buildRateLimitExceededResponse,
+    consumeRateLimit,
+    getClientAddress,
+} from "@/lib/security/rateLimit";
 
 type PokemonEmbeddingRow = {
     habitat?: string | null;
@@ -66,7 +73,8 @@ async function createChatStreamWithFallback(
 
 function createStreamResponse(
     requestSignal: AbortSignal,
-    stream: AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>
+    stream: AsyncIterable<{ choices?: Array<{ delta?: { content?: string | null } }> }>,
+    metadata: { requestId: string; route: string }
 ) {
     const encoder = new TextEncoder();
 
@@ -77,6 +85,11 @@ function createStreamResponse(
 
             const handleAbort = () => {
                 aborted = true;
+                const abortCount = incrementCounter(`${metadata.route}.aborts`);
+                logEvent("warn", `${metadata.route}.stream_abort`, {
+                    requestId: metadata.requestId,
+                    abortCount,
+                });
                 void iterator.return?.();
                 try {
                     controller.close();
@@ -99,11 +112,19 @@ function createStreamResponse(
                         controller.enqueue(encoder.encode(chunk));
                     }
                 }
-                if (!aborted) {
+                try {
                     controller.close();
+                } catch {
+                    // Ignore close errors on already closed stream.
                 }
             } catch (error) {
                 if (!aborted) {
+                    const streamErrorCount = incrementCounter(`${metadata.route}.stream_errors`);
+                    logEvent("error", `${metadata.route}.stream_error`, {
+                        requestId: metadata.requestId,
+                        streamErrorCount,
+                        message: error instanceof Error ? error.message : String(error),
+                    });
                     controller.error(error);
                 }
             } finally {
@@ -117,6 +138,7 @@ function createStreamResponse(
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
             Connection: "keep-alive",
+            "X-Request-Id": metadata.requestId,
         },
     });
 }
@@ -185,12 +207,20 @@ async function buildRoleplaySummary(pokemonName: string): Promise<RoleplaySummar
 }
 
 export async function POST(req: NextRequest) {
+    const route = "api.chat_roleplay";
+    const requestId = crypto.randomUUID();
+    const startedAt = startTimer();
     const origin = req.headers.get("origin");
     if (!origin || !isOriginAllowed(origin)) {
         return Response.json(
             { error: !origin ? "Origin header required for this endpoint" : "Unauthorized origin" },
             { status: 403 }
         );
+    }
+
+    const rateLimitResult = await consumeRateLimit(`chat-roleplay:${getClientAddress(req)}`, 60_000, 60);
+    if (!rateLimitResult.allowed) {
+        return buildRateLimitExceededResponse(rateLimitResult);
     }
 
     const rawBody = await req.json().catch(() => null);
@@ -232,28 +262,62 @@ export async function POST(req: NextRequest) {
     try {
         roleplaySummary = await buildRoleplaySummary(safePokemon);
     } catch (error) {
-        console.warn(`Unable to load roleplay context for ${safePokemon}:`, error);
+        const contextFailureCount = incrementCounter(`${route}.context_errors`);
+        logEvent("warn", `${route}.context_error`, {
+            requestId,
+            contextFailureCount,
+            pokemon: safePokemon,
+            message: error instanceof Error ? error.message : String(error),
+        });
     }
 
-    const aiClient = getAIClient();
-    const messages: ChatCompletionMessageParam[] = [
-        {
-            role: "system",
-            content:
-                "You are a Pokemon and always talk in first person as that Pokemon. Keep replies concise, playful, and on character.",
-        },
-        {
-            role: "system",
-            content: roleplaySummary
-                ? `Pokemon context:\n${JSON.stringify(roleplaySummary)}`
-                : `Pokemon context unavailable for ${safePokemon}.`,
-        },
-        ...normalizedChatHistory.map((message) => ({
-            role: message.role,
-            content: message.content,
-        })),
-    ];
+    try {
+        const aiClient = getAIClient();
+        const messages: ChatCompletionMessageParam[] = [
+            {
+                role: "system",
+                content:
+                    "You are a Pokemon and always talk in first person as that Pokemon. Keep replies concise, playful, and on character.",
+            },
+            {
+                role: "system",
+                content: roleplaySummary
+                    ? `Pokemon context:\n${JSON.stringify(roleplaySummary)}`
+                    : `Pokemon context unavailable for ${safePokemon}.`,
+            },
+            ...normalizedChatHistory.map((message) => ({
+                role: message.role,
+                content: message.content,
+            })),
+        ];
 
-    const stream = await createChatStreamWithFallback(aiClient, messages);
-    return createStreamResponse(req.signal, stream);
+        const stream = await createChatStreamWithFallback(aiClient, messages);
+        const durationMs = elapsedMs(startedAt);
+        observeDuration(`${route}.duration_ms`, durationMs, { outcome: "success" });
+        const successCount = incrementCounter(`${route}.success`);
+        logEvent("info", `${route}.success`, {
+            requestId,
+            successCount,
+            pokemon: safePokemon,
+            durationMs,
+            hasRoleplayContext: Boolean(roleplaySummary),
+        });
+        const response = createStreamResponse(req.signal, stream, { requestId, route });
+        appendRateLimitHeaders(response.headers, rateLimitResult);
+        return response;
+    } catch (error) {
+        const durationMs = elapsedMs(startedAt);
+        observeDuration(`${route}.duration_ms`, durationMs, { outcome: "error" });
+        const errorCount = incrementCounter(`${route}.errors`);
+        logEvent("error", `${route}.error`, {
+            requestId,
+            errorCount,
+            pokemon: safePokemon,
+            durationMs,
+            message: error instanceof Error ? error.message : String(error),
+        });
+        const response = Response.json({ error: "Roleplay request failed" }, { status: 500 });
+        appendRateLimitHeaders(response.headers, rateLimitResult);
+        return response;
+    }
 }

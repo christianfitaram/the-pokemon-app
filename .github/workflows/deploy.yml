@@ -6,12 +6,58 @@ on:
       - main  # Change if your default branch is different
 
 jobs:
+  quality:
+    name: ✅ Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:strict
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test -- --coverage --runInBand
+
+      - name: Build
+        run: npm run build
+
+      - name: Package build artifact
+        run: tar -czf deploy-artifact.tgz .next
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build-artifact
+          path: deploy-artifact.tgz
+          retention-days: 1
+
   deploy:
+    name: 🚀 Deploy
+    needs: quality
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: next-build-artifact
+        path: .
 
     - name: Set up SSH
       run: |
@@ -20,9 +66,15 @@ jobs:
         chmod 600 ~/.ssh/id_ed25519
         ssh-keyscan -H ${{ secrets.GCP_VM_HOST }} >> ~/.ssh/known_hosts
 
+    - name: Upload artifact to VM
+      run: |
+        scp deploy-artifact.tgz ${{ secrets.GCP_VM_USERNAME }}@${{ secrets.GCP_VM_HOST }}:/tmp/deploy-artifact.tgz
+
     - name: Deploy to VM via PM2
       run: |
         ssh ${{ secrets.GCP_VM_USERNAME }}@${{ secrets.GCP_VM_HOST }} << 'EOF'
+        set -euo pipefail
+
         # Load NVM and use the correct Node version
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
@@ -31,9 +83,30 @@ jobs:
         PM2_PATH="$HOME/.nvm/versions/node/v22.18.0/bin/pm2"
         
         cd ${{ secrets.GCP_VM_PATH }}
-        git pull origin main
-        npm install
-        npm run build
-        $PM2_PATH restart the-pokemon-app
+        PREV_SHA="$(git rev-parse HEAD)"
+
+        git fetch origin main
+        git checkout main
+        git reset --hard origin/main
+
+        if [ ! -f package-lock.json ]; then
+          echo "package-lock.json is required for deterministic deploys"
+          exit 1
+        fi
+
+        npm ci
+        rm -rf .next
+        tar -xzf /tmp/deploy-artifact.tgz -C .
+        $PM2_PATH restart the-pokemon-app --update-env
+
+        sleep 8
+        if ! curl --fail --silent --show-error http://127.0.0.1:3000/api/health > /tmp/the-pokemon-app-healthcheck.json; then
+          echo "Health check failed, rolling back to ${PREV_SHA}"
+          git reset --hard "$PREV_SHA"
+          npm ci
+          npm run build
+          $PM2_PATH restart the-pokemon-app --update-env
+          exit 1
+        fi
         EOF
       

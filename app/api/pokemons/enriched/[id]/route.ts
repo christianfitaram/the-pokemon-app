@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectRedis } from "@/lib/redis";
 import { EnrichedEvolutionNode, EnrichedPokemonAbility, EnrichedPokemonData, EnrichedPokemonEncounter, EnrichedPokemonMove } from "@/types/enrichedPokemon";
 import { z } from "zod";
+import { elapsedMs, incrementCounter, logEvent, observeDuration, startTimer } from "@/lib/observability";
+import {
+    appendRateLimitHeaders,
+    buildRateLimitExceededResponse,
+    consumeRateLimit,
+    getClientAddress,
+} from "@/lib/security/rateLimit";
 
 const BASE_URL = "https://pokeapi.co/api/v2";
 
@@ -418,6 +425,9 @@ export async function GET(
     request: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+    const route = "api.pokemons.enriched";
+    const requestId = crypto.randomUUID();
+    const startedAt = startTimer();
     const { id: rawId } = await context.params;
     const id = sanitizeId(rawId);
 
@@ -426,6 +436,11 @@ export async function GET(
             { success: false, error: "Pokemon id must be a positive integer" },
             { status: 400 }
         );
+    }
+
+    const rateLimitResult = await consumeRateLimit(`pokemon-enriched:${getClientAddress(request)}`, 60_000, 120);
+    if (!rateLimitResult.allowed) {
+        return buildRateLimitExceededResponse(rateLimitResult);
     }
 
     const includeEncounters = request.nextUrl.searchParams.get("includeEncounters") === "true";
@@ -438,8 +453,19 @@ export async function GET(
             TTL.aggregate.stale,
             () => getEnrichedPokemon(id, includeEncounters)
         );
+        const durationMs = elapsedMs(startedAt);
+        observeDuration(`${route}.duration_ms`, durationMs, { outcome: "success" });
+        const successCount = incrementCounter(`${route}.success`);
+        logEvent("info", `${route}.success`, {
+            requestId,
+            successCount,
+            pokemonId: id,
+            includeEncounters,
+            cacheState: aggregated.state,
+            durationMs,
+        });
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             data: aggregated.data,
             meta: {
@@ -447,10 +473,27 @@ export async function GET(
                 includeEncounters,
             },
         });
+        response.headers.set("X-Request-Id", requestId);
+        appendRateLimitHeaders(response.headers, rateLimitResult);
+        return response;
     } catch (error) {
-        return NextResponse.json(
+        const durationMs = elapsedMs(startedAt);
+        observeDuration(`${route}.duration_ms`, durationMs, { outcome: "error" });
+        const errorCount = incrementCounter(`${route}.errors`);
+        logEvent("error", `${route}.error`, {
+            requestId,
+            errorCount,
+            pokemonId: id,
+            includeEncounters,
+            durationMs,
+            message: error instanceof Error ? error.message : String(error),
+        });
+        const response = NextResponse.json(
             { success: false, error: (error as Error).message },
             { status: 500 }
         );
+        response.headers.set("X-Request-Id", requestId);
+        appendRateLimitHeaders(response.headers, rateLimitResult);
+        return response;
     }
 }

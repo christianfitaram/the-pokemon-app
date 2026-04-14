@@ -135,6 +135,7 @@ export default function UnifiedChat({
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lastFailedInput, setLastFailedInput] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
@@ -161,8 +162,8 @@ export default function UnifiedChat({
     }
   }, []);
 
-  const sendMessage = useCallback(async () => {
-    const trimmedInput = input.trim();
+  const sendMessage = useCallback(async (overrideInput?: string) => {
+    const trimmedInput = (overrideInput ?? input).trim();
     if (!trimmedInput || loading) return;
 
     cancelInFlightRequest();
@@ -172,7 +173,10 @@ export default function UnifiedChat({
     const userMessage: ChatMessage = { role: "user", content: trimmedInput };
     const newMessages = trimChatHistory([...messages, userMessage]);
     setMessages(newMessages);
-    setInput("");
+    if (!overrideInput) {
+      setInput("");
+    }
+    setLastFailedInput(null);
     setLoading(true);
 
     try {
@@ -226,9 +230,10 @@ export default function UnifiedChat({
         return;
       }
       console.error("Error reading stream:", error);
+      setLastFailedInput(trimmedInput);
       setMessages((msgs) => trimChatHistory([
         ...msgs,
-        { role: "assistant", content: "Oops, there was an error responding." },
+        { role: "assistant", content: "Oops, there was an error responding. You can retry your message." },
       ]));
     } finally {
       if (abortControllerRef.current === controller) {
@@ -402,12 +407,23 @@ export default function UnifiedChat({
         />
         <button
           type="button"
-          onClick={sendMessage}
+          onClick={() => {
+            void sendMessage();
+          }}
           disabled={loading}
           className="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600"
         >
           {loading ? "Talking..." : "Send"}
         </button>
+        {lastFailedInput && !loading && (
+          <button
+            type="button"
+            onClick={() => sendMessage(lastFailedInput)}
+            className="mt-2 border border-gray-300 text-gray-100 px-4 py-2 rounded w-full hover:bg-gray-700"
+          >
+            Retry last message
+          </button>
+        )}
       </div>
       {showBackButton && onBack && (
         <div className="flex flex-row justify-start mb-2">

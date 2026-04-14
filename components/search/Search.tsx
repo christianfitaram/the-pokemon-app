@@ -22,10 +22,12 @@ const Search: React.FC<SearchProps> = ({
     const [noMatchesMessage, setNoMatchesMessage] = useState<string | null>(null);
     const [showDropdown, setShowDropdown] = useState<boolean>(false);
     const [highlightedIndex, setHighlightedIndex] = useState<number>(0);
+    const [typeError, setTypeError] = useState<string | null>(null);
+    const [typeRetryNonce, setTypeRetryNonce] = useState(0);
 
     const dropdownRef = useRef<HTMLDivElement>(null);
     const {recent} = useRecentlyViewed();
-    const {pokemonNames} = useAllPokemonNames(searchQuery);
+    const {pokemonNames, loading: namesLoading} = useAllPokemonNames(searchQuery);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -46,11 +48,13 @@ const Search: React.FC<SearchProps> = ({
                 setIsSearchOn(false);
                 onChange([]);
                 setTypeLoading(false);
+                setTypeError(null);
                 return;
             }
 
             try {
                 setTypeLoading(true);
+                setTypeError(null);
                 setIsSearchOn(true);
                 const filteredPokemons = await searchEngine(selectedTypes);
                 if (!isCancelled) {
@@ -58,6 +62,9 @@ const Search: React.FC<SearchProps> = ({
                 }
             } catch (error) {
                 console.error('Error fetching Pokemon by type:', error);
+                if (!isCancelled) {
+                    setTypeError("Failed to load Pokémon for selected types. Please retry.");
+                }
             } finally {
                 if (!isCancelled) {
                     setTypeLoading(false);
@@ -69,7 +76,7 @@ const Search: React.FC<SearchProps> = ({
         return () => {
             isCancelled = true;
         };
-    }, [selectedTypes, onChange, setTypeLoading, setIsSearchOn]);
+    }, [selectedTypes, onChange, setTypeLoading, setIsSearchOn, typeRetryNonce]);
 
     const handleTypeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const nextType = event.target.value;
@@ -105,6 +112,7 @@ const Search: React.FC<SearchProps> = ({
     const goToHome = () => {
         setIsSearchOn(false);
         setSelectedTypes([]);
+        setTypeError(null);
         onChange([]);
     };
 
@@ -137,6 +145,25 @@ const Search: React.FC<SearchProps> = ({
                 selectedTypes={selectedTypes}
                 removeType={removeType}
             />
+            {typeError && (
+                <div className="w-full max-w-2xl rounded-md border border-red-400 bg-red-950/40 p-3">
+                    <p className="text-red-300 text-sm" role="alert" aria-live="assertive">
+                        {typeError}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => setTypeRetryNonce((value) => value + 1)}
+                        className="mt-2 rounded border border-red-300 px-3 py-1 text-red-100 hover:bg-red-900/40"
+                    >
+                        Retry type search
+                    </button>
+                </div>
+            )}
+            {searchQuery.trim().length >= 2 && namesLoading && (
+                <p className="text-sm text-gray-200" role="status" aria-live="polite">
+                    Searching Pokémon names...
+                </p>
+            )}
 
             <ActionButtons
                 goToHome={goToHome}

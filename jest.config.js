@@ -12,6 +12,14 @@ const customJestConfig = {
     "\\.(css|less|sass|scss)$": "<rootDir>/test/styleMock.js",
   },
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/cypress/"],
+  coverageThreshold: {
+    global: {
+      statements: 70,
+      branches: 55,
+      functions: 70,
+      lines: 70,
+    },
+  },
 };
 
 module.exports = createJestConfig(customJestConfig);
