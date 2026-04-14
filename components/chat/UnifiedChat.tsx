@@ -12,7 +12,93 @@ const SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"]);
 const MAX_CHAT_HISTORY_MESSAGES = 30;
 const FIRST_CHUNK_TIMEOUT_MS = 20000;
 const STREAM_SETTLE_TIMEOUT_MS = 2500;
-const DEBUG_CHAT_STREAM = true;
+const DEBUG_CHAT_STREAM = false;
+const NON_VISIBLE_STREAM_TOKEN_PATTERN = /[\s\u0000-\u001F\u007F-\u009F\u200B-\u200D\u2060\uFEFF]/g;
+const STREAM_DEBUG_STORAGE_KEY = "pokemon-chat-stream-debug";
+const STREAM_DEBUG_QUERY_PARAM = "debugStreamFrames";
+const STREAM_DEBUG_MAX_FRAMES = 500;
+const STREAM_DEBUG_MAX_CODEPOINTS = 64;
+
+function parseRuntimeDebugFlag(value: string | null): boolean | null {
+  if (value === null) {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return null;
+}
+
+function isRuntimeStreamDebugEnabled(): boolean {
+  if (DEBUG_CHAT_STREAM) {
+    return true;
+  }
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    const queryFlag = parseRuntimeDebugFlag(new URLSearchParams(window.location.search).get(STREAM_DEBUG_QUERY_PARAM));
+    if (queryFlag !== null) {
+      window.localStorage.setItem(STREAM_DEBUG_STORAGE_KEY, queryFlag ? "1" : "0");
+      return queryFlag;
+    }
+    const persistedFlag = parseRuntimeDebugFlag(window.localStorage.getItem(STREAM_DEBUG_STORAGE_KEY));
+    return persistedFlag ?? false;
+  } catch {
+    return false;
+  }
+}
+
+function isHiddenStreamCodePoint(codePoint: number): boolean {
+  return (
+    codePoint <= 0x1F ||
+    (codePoint >= 0x7F && codePoint <= 0x9F) ||
+    (codePoint >= 0x200B && codePoint <= 0x200D) ||
+    codePoint === 0x2060 ||
+    codePoint === 0xFEFF
+  );
+}
+
+function toEscapedDebugText(value: string): string {
+  return Array.from(value)
+    .map((char) => {
+      if (char === "\\") return "\\\\";
+      if (char === "\n") return "\\n";
+      if (char === "\r") return "\\r";
+      if (char === "\t") return "\\t";
+
+      const codePoint = char.codePointAt(0) ?? 0;
+      if (isHiddenStreamCodePoint(codePoint)) {
+        const width = codePoint > 0xFFFF ? 6 : 4;
+        return `\\u${codePoint.toString(16).toUpperCase().padStart(width, "0")}`;
+      }
+
+      return char;
+    })
+    .join("");
+}
+
+function getStreamTokenDebugSnapshot(tokenText: string) {
+  const codePoints = Array.from(tokenText).map((char) => char.codePointAt(0) ?? 0);
+  const sampled = codePoints.slice(0, STREAM_DEBUG_MAX_CODEPOINTS);
+
+  return {
+    raw: tokenText,
+    escaped: toEscapedDebugText(tokenText),
+    length: tokenText.length,
+    codePointCount: codePoints.length,
+    sampledCodePoints: sampled.map((codePoint) =>
+      `U+${codePoint.toString(16).toUpperCase().padStart(codePoint > 0xFFFF ? 6 : 4, "0")}`
+    ),
+    sampledCodePointsTruncated: codePoints.length > sampled.length,
+    hasVisibleChars: hasVisibleStreamTokenContent(tokenText),
+  };
+}
 
 function trimChatHistory(messages: ChatMessage[]): ChatMessage[] {
   if (messages.length <= MAX_CHAT_HISTORY_MESSAGES) {
@@ -107,7 +193,7 @@ function normalizeAssistantStreamText(content: string): string {
     }
 
     const payload = dataLines.join("\n");
-    if (payload === "[DONE]") {
+    if (payload.trim() === "[DONE]") {
       continue;
     }
 
@@ -122,6 +208,10 @@ function normalizeAssistantStreamText(content: string): string {
   }
 
   return extractedTokens.length > 0 ? extractedTokens.join("") : content;
+}
+
+function hasVisibleStreamTokenContent(tokenText: string): boolean {
+  return tokenText.replace(NON_VISIBLE_STREAM_TOKEN_PATTERN, "").length > 0;
 }
 
 const MessageBody = memo(function MessageBody({ message }: { message: ChatMessage }) {
@@ -176,14 +266,13 @@ export default function UnifiedChat({
   const [input, setInput] = useState("");
   const [isAwaitingFirstChunk, setIsAwaitingFirstChunk] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [hasStreamedAssistantContent, setHasStreamedAssistantContent] = useState(false);
   const [lastFailedInput, setLastFailedInput] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const isMountedRef = useRef(true);
 
   useEffect(() => {
     return () => {
-      isMountedRef.current = false;
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
@@ -198,10 +287,9 @@ export default function UnifiedChat({
   const cancelInFlightRequest = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
-    if (isMountedRef.current) {
-      setIsAwaitingFirstChunk(false);
-      setIsStreaming(false);
-    }
+    setIsAwaitingFirstChunk(false);
+    setIsStreaming(false);
+    setHasStreamedAssistantContent(false);
   }, []);
 
   const isBusy = isAwaitingFirstChunk || isStreaming;
@@ -223,8 +311,32 @@ export default function UnifiedChat({
     setLastFailedInput(null);
     setIsAwaitingFirstChunk(true);
     setIsStreaming(true);
+    setHasStreamedAssistantContent(false);
     let firstChunkReceived = false;
     let requestId: string | null = null;
+    let assistantContentStarted = false;
+    const streamDebugEnabled = isRuntimeStreamDebugEnabled();
+    let streamFrameCount = 0;
+    let streamFrameLogTruncated = false;
+    let assistantMessage = "";
+    let terminationReason:
+      | "unknown"
+      | "done_frame"
+      | "watchdog_timeout"
+      | "reader_done"
+      | "first_chunk_timeout"
+      | "manual_or_external_abort"
+      | "stream_error" = "unknown";
+    const logStreamDebug = (event: string, details: Record<string, unknown>) => {
+      if (!streamDebugEnabled || typeof window === "undefined") {
+        return;
+      }
+      console.debug(`[UnifiedChat][stream-debug] ${event}`, {
+        chatType,
+        requestId,
+        ...details,
+      });
+    };
     const withRequestId = (message: string) =>
       requestId ? `${message} (request id: ${requestId})` : message;
 
@@ -235,6 +347,15 @@ export default function UnifiedChat({
       const responseClone = typeof res.clone === "function" ? res.clone() : null;
       requestId = res.headers.get("x-request-id")?.trim() || null;
       const contentType = res.headers.get("content-type")?.toLowerCase() || "";
+
+      logStreamDebug("enabled", {
+        queryParam: STREAM_DEBUG_QUERY_PARAM,
+        storageKey: STREAM_DEBUG_STORAGE_KEY,
+      });
+      logStreamDebug("response", {
+        contentType,
+        hasBody: Boolean(res.body),
+      });
 
       if (DEBUG_CHAT_STREAM && typeof window !== "undefined") {
         console.debug("[UnifiedChat] stream response", {
@@ -252,41 +373,54 @@ export default function UnifiedChat({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
-      let assistantMessage = "";
       let sseBuffer = "";
       let rawAccumulator = "";
       let sawSseDataFrame = false;
       let chunkCount = 0;
-      let streamSettleTimeout: number | null = null;
+      let streamWatchdogInterval: number | null = null;
+      let lastMeaningfulActivityAt: number | null = null;
 
-      const clearStreamSettleTimeout = () => {
-        if (streamSettleTimeout !== null) {
-          window.clearTimeout(streamSettleTimeout);
-          streamSettleTimeout = null;
+      const clearStreamWatchdog = () => {
+        if (streamWatchdogInterval !== null) {
+          window.clearInterval(streamWatchdogInterval);
+          streamWatchdogInterval = null;
         }
       };
 
-      const scheduleStreamSettleTimeout = () => {
-        clearStreamSettleTimeout();
-        streamSettleTimeout = window.setTimeout(() => {
-          if (firstChunkReceived && !controller.signal.aborted) {
+      const startStreamWatchdog = () => {
+        if (streamWatchdogInterval !== null) {
+          return;
+        }
+        streamWatchdogInterval = window.setInterval(() => {
+          if (!firstChunkReceived || controller.signal.aborted || lastMeaningfulActivityAt === null) {
+            return;
+          }
+          if (Date.now() - lastMeaningfulActivityAt >= STREAM_SETTLE_TIMEOUT_MS) {
             if (DEBUG_CHAT_STREAM && typeof window !== "undefined") {
-              console.debug("[UnifiedChat] stream settle timeout", {
+              console.debug("[UnifiedChat] stream watchdog timeout", {
                 chatType,
                 requestId,
                 assistantMessageLength: assistantMessage.length,
               });
             }
+            logStreamDebug("watchdog-timeout", {
+              idleForMs: Date.now() - lastMeaningfulActivityAt,
+              assistantMessageLength: assistantMessage.length,
+              parsedFrameCount: streamFrameCount,
+            });
+            terminationReason = "watchdog_timeout";
             setIsAwaitingFirstChunk(false);
             setIsStreaming(false);
+            clearStreamWatchdog();
             controller.abort();
           }
-        }, STREAM_SETTLE_TIMEOUT_MS);
+        }, 250);
       };
 
       const parseSseBuffer = () => {
         let updated = false;
         let doneReceived = false;
+        let meaningfulUpdate = false;
 
         while (true) {
           const separatorMatch = sseBuffer.match(/\r?\n\r?\n/);
@@ -298,6 +432,7 @@ export default function UnifiedChat({
           const separatorLength = separatorMatch[0].length;
           const rawEvent = sseBuffer.slice(0, separatorIndex);
           sseBuffer = sseBuffer.slice(separatorIndex + separatorLength);
+          streamFrameCount += 1;
 
           const dataLines = rawEvent
             .split(/\r?\n/)
@@ -311,28 +446,63 @@ export default function UnifiedChat({
           sawSseDataFrame = true;
 
           const payload = dataLines.join("\n");
-          if (payload === "[DONE]") {
+          if (streamDebugEnabled) {
+            if (streamFrameCount <= STREAM_DEBUG_MAX_FRAMES) {
+              logStreamDebug("frame", {
+                frameIndex: streamFrameCount,
+                rawEventEscaped: toEscapedDebugText(rawEvent),
+                payloadEscaped: toEscapedDebugText(payload),
+                dataLineCount: dataLines.length,
+              });
+            } else if (!streamFrameLogTruncated) {
+              streamFrameLogTruncated = true;
+              logStreamDebug("frame-log-truncated", {
+                frameIndex: streamFrameCount,
+                maxLoggedFrames: STREAM_DEBUG_MAX_FRAMES,
+              });
+            }
+          }
+
+          if (payload.trim() === "[DONE]") {
             doneReceived = true;
             break;
           }
 
           let tokenText = "";
+          let tokenSource: "json" | "fallback" | "empty" = "empty";
           try {
             const parsed = JSON.parse(payload) as { type?: string; text?: string };
             if (parsed?.type === "token" && typeof parsed.text === "string") {
               tokenText = parsed.text;
+              tokenSource = "json";
             }
           } catch {
             tokenText = payload;
+            tokenSource = "fallback";
+          }
+
+          if (streamDebugEnabled && streamFrameCount <= STREAM_DEBUG_MAX_FRAMES) {
+            logStreamDebug("token", {
+              frameIndex: streamFrameCount,
+              tokenSource,
+              token: getStreamTokenDebugSnapshot(tokenText),
+            });
           }
 
           if (tokenText) {
             assistantMessage += tokenText;
             updated = true;
+            if (!assistantContentStarted && hasVisibleStreamTokenContent(tokenText)) {
+              assistantContentStarted = true;
+              setHasStreamedAssistantContent(true);
+            }
+            if (hasVisibleStreamTokenContent(tokenText)) {
+              meaningfulUpdate = true;
+            }
           }
         }
 
-        return { updated, doneReceived };
+        return { updated, doneReceived, meaningfulUpdate };
       };
 
       const commitAssistantMessage = () => {
@@ -354,6 +524,10 @@ export default function UnifiedChat({
       };
       const firstChunkTimeout = window.setTimeout(() => {
         if (!firstChunkReceived && !controller.signal.aborted) {
+          terminationReason = "first_chunk_timeout";
+          logStreamDebug("first-chunk-timeout", {
+            timeoutMs: FIRST_CHUNK_TIMEOUT_MS,
+          });
           controller.abort();
         }
       }, FIRST_CHUNK_TIMEOUT_MS);
@@ -361,10 +535,17 @@ export default function UnifiedChat({
       while (!done && !controller.signal.aborted) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
+        if (doneReading && !controller.signal.aborted && terminationReason === "unknown") {
+          terminationReason = "reader_done";
+          logStreamDebug("reader-done", {
+            assistantMessageLength: assistantMessage.length,
+            parsedFrameCount: streamFrameCount,
+          });
+        }
         if (controller.signal.aborted) {
           break;
         }
-        if (value && isMountedRef.current) {
+        if (value) {
           const chunk = decoder.decode(value, { stream: true });
           chunkCount += 1;
           if (DEBUG_CHAT_STREAM && typeof window !== "undefined" && chunkCount <= 5) {
@@ -376,18 +557,24 @@ export default function UnifiedChat({
               preview: chunk.slice(0, 200),
             });
           }
+          logStreamDebug("chunk", {
+            chunkIndex: chunkCount,
+            chunkTextLength: chunk.length,
+            chunkEscaped: toEscapedDebugText(chunk),
+            rawByteLength: value.byteLength,
+          });
           rawAccumulator += chunk;
 
           if (!firstChunkReceived) {
             setIsAwaitingFirstChunk(false);
             firstChunkReceived = true;
             window.clearTimeout(firstChunkTimeout);
+            lastMeaningfulActivityAt = Date.now();
+            startStreamWatchdog();
           }
 
-          scheduleStreamSettleTimeout();
-
           sseBuffer += chunk;
-          const { updated, doneReceived } = parseSseBuffer();
+          const { updated, doneReceived, meaningfulUpdate } = parseSseBuffer();
           if (DEBUG_CHAT_STREAM && typeof window !== "undefined" && chunkCount <= 5) {
             console.debug("[UnifiedChat] parser state", {
               chatType,
@@ -398,15 +585,24 @@ export default function UnifiedChat({
               assistantMessageLength: assistantMessage.length,
               updated,
               doneReceived,
+              meaningfulUpdate,
             });
           }
           if (updated) {
             commitAssistantMessage();
           }
+          if (meaningfulUpdate) {
+            lastMeaningfulActivityAt = Date.now();
+          }
           if (doneReceived) {
+            terminationReason = "done_frame";
+            logStreamDebug("done-frame", {
+              assistantMessageLength: assistantMessage.length,
+              parsedFrameCount: streamFrameCount,
+            });
             setIsAwaitingFirstChunk(false);
             setIsStreaming(false);
-            clearStreamSettleTimeout();
+            clearStreamWatchdog();
             done = true;
             controller.abort();
             break;
@@ -415,7 +611,7 @@ export default function UnifiedChat({
       }
 
       window.clearTimeout(firstChunkTimeout);
-      clearStreamSettleTimeout();
+      clearStreamWatchdog();
 
       if (!controller.signal.aborted && sseBuffer.trim().length > 0) {
         const pendingEvent = sseBuffer
@@ -423,8 +619,12 @@ export default function UnifiedChat({
           .filter((line) => line.startsWith("data:"))
           .map((line) => line.slice(5).trimStart())
           .join("\n");
+        logStreamDebug("pending-buffer", {
+          pendingBufferEscaped: toEscapedDebugText(sseBuffer),
+          pendingEventEscaped: toEscapedDebugText(pendingEvent),
+        });
 
-        if (pendingEvent && pendingEvent !== "[DONE]") {
+        if (pendingEvent && pendingEvent.trim() !== "[DONE]") {
           try {
             const parsed = JSON.parse(pendingEvent) as { type?: string; text?: string };
             if (parsed?.type === "token" && typeof parsed.text === "string") {
@@ -447,14 +647,25 @@ export default function UnifiedChat({
             rawPreview: rawAccumulator.slice(0, 400),
           });
         }
+        logStreamDebug("raw-fallback", {
+          rawAccumulatorEscaped: toEscapedDebugText(rawAccumulator),
+          rawLength: rawAccumulator.length,
+        });
         assistantMessage = normalizeAssistantStreamText(rawAccumulator);
         commitAssistantMessage();
       }
 
       if (!controller.signal.aborted && assistantMessage.length === 0) {
         const fallbackText = responseClone ? await responseClone.text().catch(() => "") : "";
+        logStreamDebug("response-clone-fallback", {
+          fallbackTextLength: fallbackText.length,
+          fallbackTextEscaped: toEscapedDebugText(fallbackText),
+        });
         if (fallbackText.length > 0) {
           assistantMessage = normalizeAssistantStreamText(fallbackText);
+          if (hasVisibleStreamTokenContent(assistantMessage)) {
+            setHasStreamedAssistantContent(true);
+          }
           setMessages((msgs) => {
             if (msgs[msgs.length - 1]?.role !== "assistant") {
               return trimChatHistory([
@@ -483,6 +694,15 @@ export default function UnifiedChat({
       }
     } catch (error) {
       if (controller.signal.aborted) {
+        if (terminationReason === "unknown") {
+          terminationReason = "manual_or_external_abort";
+        }
+        logStreamDebug("aborted", {
+          reason: terminationReason,
+          firstChunkReceived,
+          assistantMessageLength: assistantMessage.length,
+          parsedFrameCount: streamFrameCount,
+        });
         if (!firstChunkReceived) {
           setLastFailedInput(trimmedInput);
           setMessages((msgs) => trimChatHistory([
@@ -495,6 +715,13 @@ export default function UnifiedChat({
         }
         return;
       }
+      terminationReason = "stream_error";
+      logStreamDebug("stream-error", {
+        message: error instanceof Error ? error.message : String(error),
+        firstChunkReceived,
+        assistantMessageLength: assistantMessage.length,
+        parsedFrameCount: streamFrameCount,
+      });
       console.error("Error reading stream:", error);
       setLastFailedInput(trimmedInput);
       setMessages((msgs) => trimChatHistory([
@@ -505,23 +732,29 @@ export default function UnifiedChat({
         },
       ]));
     } finally {
+      logStreamDebug("stream-finalized", {
+        reason: terminationReason,
+        firstChunkReceived,
+        assistantMessageLength: assistantMessage.length,
+        parsedFrameCount: streamFrameCount,
+      });
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
-      if (isMountedRef.current) {
-        setIsAwaitingFirstChunk(false);
-        setIsStreaming(false);
-      }
+      setIsAwaitingFirstChunk(false);
+      setIsStreaming(false);
+      setHasStreamedAssistantContent(false);
     }
   }, [input, isBusy, cancelInFlightRequest, messages, setMessages, chatType, pokemon]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      sendMessage();
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void sendMessage();
     }
   }, [sendMessage]);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
   }, []);
 
@@ -534,6 +767,9 @@ export default function UnifiedChat({
     cancelInFlightRequest();
     onBack?.();
   }, [cancelInFlightRequest, onBack]);
+
+  const hasPendingInput = input.trim().length > 0;
+  const showTypingIndicator = isBusy && !hasStreamedAssistantContent;
 
   const getChatTitle = () => {
     if (chatType === "pokemon" && pokemon) {
@@ -663,28 +899,42 @@ export default function UnifiedChat({
               </div>
             </div>
           ))}
-          {isBusy && <TypingIndicatorComponent />}
+          {showTypingIndicator && <TypingIndicatorComponent />}
         </div>
-        <input
-          type="text"
+        <textarea
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           aria-label="Chat message input"
-          placeholder="Ask something..."
-          className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-3 mb-2 bg-body-chat text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Ask something... (Shift+Enter for a new line)"
+          rows={3}
+          className="font-[family-name:var(--font-geist-mono)] border rounded-xl w-full p-3 mb-2 bg-body-chat text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y min-h-[84px]"
           disabled={isBusy}
         />
-        <button
-          type="button"
-          onClick={() => {
-            void sendMessage();
-          }}
-          disabled={isBusy}
-          className="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600"
-        >
-          {isBusy ? "Talking..." : "Send"}
-        </button>
+        <p className="mb-2 text-xs text-gray-400">
+          Press Enter to send. Use Shift+Enter for a line break.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {isBusy && (
+            <button
+              type="button"
+              onClick={cancelInFlightRequest}
+              className="border border-red-300 text-red-100 px-4 py-2 rounded w-full hover:bg-red-900/40"
+            >
+              Stop generating
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              void sendMessage();
+            }}
+            disabled={isBusy || !hasPendingInput}
+            className="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isBusy ? "Talking..." : "Send"}
+          </button>
+        </div>
         {lastFailedInput && !isBusy && (
           <button
             type="button"

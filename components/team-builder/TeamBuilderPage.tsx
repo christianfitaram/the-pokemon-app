@@ -224,7 +224,7 @@ export default function TeamBuilderPage() {
             <main className="mx-auto w-full max-w-screen-xl px-4 py-10 sm:px-8">
                 <div className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-slate-950/70 p-6 shadow-2xl lg:flex-row lg:items-end lg:justify-between">
                     <div className="space-y-3">
-                        <p className="text-xs uppercase tracking-[0.35em] text-sky-300/80">Recruiter-ready feature</p>
+                        <p className="text-xs uppercase tracking-[0.35em] text-sky-300/80">Portfolio-ready feature</p>
                         <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Team Builder</h1>
                         <p className="max-w-3xl text-slate-300">
                             Assemble a six-Pokémon team, inspect coverage, and keep your draft saved locally. This is the standout feature that turns the app from a browser into a product.
@@ -329,7 +329,7 @@ export default function TeamBuilderPage() {
                                 <p className="mt-2 text-sm text-white">See duplicates in the right panel.</p>
                             </div>
                             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Recruiter signal</p>
+                                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Quality signal</p>
                                 <p className="mt-2 text-sm text-white">Shows state, reuse, and product design.</p>
                             </div>
                         </div>

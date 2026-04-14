@@ -17,12 +17,17 @@ Environment variables:
 - Counter metrics from `incrementCounter(...)`
   - Example: `pokemon_app.api.assistance.success`
   - Example: `pokemon_app.api.assistance.errors`
+  - Example: `pokemon_app.api.chat_roleplay.aborts`
+  - Example: `pokemon_app.api.chat_roleplay.stream_errors`
+  - Example: `pokemon_app.api.chat_roleplay.context_errors`
 - Route latency histograms (milliseconds) via `observeDuration(...)`
   - `pokemon_app.api.assistance.duration_ms`
   - `pokemon_app.api.chat_roleplay.duration_ms`
   - `pokemon_app.api.pokemons.enriched.duration_ms`
 
 Each latency metric includes an `outcome` tag (`success` or `error`).
+
+Metrics are sent only when `METRICS_BACKEND=statsd` or `STATSD_HOST` is configured.
 
 ## Suggested Alerts
 

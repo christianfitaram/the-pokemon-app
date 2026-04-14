@@ -21,11 +21,18 @@
         "name": "next"
       }
     ],
+    "types": [
+      "jest",
+      "node",
+      "@testing-library/jest-dom"
+    ],
     "paths": {
       "@/*": [
         "./*"
       ]
     },
+    "ignoreDeprecations": "5.0",
+    "baseUrl": ".",
     "target": "ES2017"
   },
   "include": [

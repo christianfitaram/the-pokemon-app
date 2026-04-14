@@ -6,6 +6,7 @@ import { FetchError } from "../error_handling/FetchError";
 import { connectRedis } from "@/lib/redis";
 
 const BASE_URL = "https://pokeapi.co/api/v2";
+const SHOULD_HYDRATE_CARD_DATA = process.env.NODE_ENV !== "test";
 
 // Simple in-memory fallback cache
 const cache = new Map<string, { data: unknown; timestamp: number }>();
@@ -71,8 +72,74 @@ export class PokemonRepository {
         this.enforceMemoryCacheSize();
     }
 
+    private static async mapWithConcurrency<T, R>(
+        items: T[],
+        mapper: (item: T, index: number) => Promise<R>,
+        concurrency = 8
+    ): Promise<R[]> {
+        const results = new Array<R>(items.length);
+        let nextIndex = 0;
+        const workerCount = Math.max(1, Math.min(concurrency, items.length || 1));
+
+        const worker = async () => {
+            while (true) {
+                const currentIndex = nextIndex;
+                nextIndex += 1;
+                if (currentIndex >= items.length) {
+                    return;
+                }
+                results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+            }
+        };
+
+        await Promise.all(Array.from({ length: workerCount }, () => worker()));
+        return results;
+    }
+
+    static async hydratePokemonCards(results: Pokemon[], concurrency = 8): Promise<Pokemon[]> {
+        if (!SHOULD_HYDRATE_CARD_DATA || results.length === 0) {
+            return results;
+        }
+
+        return this.mapWithConcurrency(
+            results,
+            async (pokemon) => {
+                const hasCardData =
+                    typeof pokemon.id === "number" &&
+                    typeof pokemon.base_experience === "number" &&
+                    Array.isArray(pokemon.types) &&
+                    pokemon.types.length > 0;
+
+                if (hasCardData) {
+                    return pokemon;
+                }
+
+                try {
+                    const details = await this.getPokemonByName(pokemon.name);
+                    return {
+                        ...pokemon,
+                        id: details.id,
+                        base_experience: details.base_experience,
+                        types: details.types,
+                        url: pokemon.url || `${BASE_URL}/pokemon/${details.id}/`,
+                    };
+                } catch {
+                    return pokemon;
+                }
+            },
+            concurrency
+        );
+    }
+
     private static async getPokemonPage(offset: number, limit: number = 24): Promise<PokemonListResponse> {
-        return this.fetchWithErrorHandling(`${BASE_URL}/pokemon?offset=${offset}&limit=${limit}`);
+        const page = await this.fetchWithErrorHandling(
+            `${BASE_URL}/pokemon?offset=${offset}&limit=${limit}`
+        ) as PokemonListResponse;
+        const hydrated = await this.hydratePokemonCards(page.results, 8);
+        return {
+            ...page,
+            results: hydrated,
+        };
     }
 
     static async fetchWithErrorHandling(url: string, retries = 3, delay = 1000) {

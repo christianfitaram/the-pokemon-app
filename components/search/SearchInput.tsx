@@ -5,6 +5,12 @@ import Link from "next/link";
 import {capitalizeFirstLetter} from "@/utils/capitalizeFirstLetter";
 import { FaTimes } from "react-icons/fa";
 
+const SEARCH_LISTBOX_ID = "pokemon-search-listbox";
+
+function getDropdownOptionId(index: number) {
+    return `dropdown-item-${index}`;
+}
+
 export const SearchInput: React.FC<SearchInputProps> = ({
                                                             searchQuery,
                                                             setSearchQuery,
@@ -18,14 +24,23 @@ export const SearchInput: React.FC<SearchInputProps> = ({
                                                             onClear,
                                                             handleDropdownSelect,
                                                         }) => {
+    const hasSuggestions = showDropdown && filteredDropdown.length > 0;
+    const activeOptionId = hasSuggestions ? getDropdownOptionId(highlightedIndex) : undefined;
+
     return (
         <div className="relative w-full max-w-sm">
             <input
                 type="text"
                 name="search"
+                role="combobox"
                 placeholder="Search Pokémon by name..."
                 autoComplete="off"
                 data-testid="search-input"
+                aria-autocomplete="list"
+                aria-haspopup="listbox"
+                aria-controls={SEARCH_LISTBOX_ID}
+                aria-expanded={hasSuggestions}
+                aria-activedescendant={activeOptionId}
                 value={searchQuery}
                 onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -56,6 +71,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
                 </button>
             )}
             <SearchDropdown
+                listboxId={SEARCH_LISTBOX_ID}
                 showDropdown={showDropdown}
                 noMatchesMessage={noMatchesMessage}
                 filteredDropdown={filteredDropdown}
@@ -121,6 +137,7 @@ const handleKeyDown = (
 };
 
 const SearchDropdown: React.FC<{
+    listboxId: string;
     showDropdown: boolean;
     noMatchesMessage: string | null;
     filteredDropdown: Pokemon[];
@@ -128,6 +145,7 @@ const SearchDropdown: React.FC<{
     highlightedIndex: number;
     handleDropdownSelect: (pokemon: Pokemon) => void;
 }> = ({
+          listboxId,
           showDropdown,
           noMatchesMessage,
           filteredDropdown,
@@ -143,6 +161,9 @@ const SearchDropdown: React.FC<{
                     animate={{opacity: 1, y: 0}}
                     exit={{opacity: 0, y: -10}}
                     className="absolute top-[52px] w-full p-3 bg-red-100 text-red-800 rounded-md shadow-md z-10 border text-center"
+                    id="pokemon-search-feedback"
+                    role="status"
+                    aria-live="polite"
                     data-testid="no-results"
                 >
                     {noMatchesMessage}
@@ -156,6 +177,9 @@ const SearchDropdown: React.FC<{
                         animate={{opacity: 1, y: 0}}
                         exit={{opacity: 0, y: -10}}
                         transition={{duration: 0.2}}
+                        id={listboxId}
+                        role="listbox"
+                        aria-label="Pokemon suggestions"
                         className="absolute top-[52px] max-w-sm w-full bg-white rounded-md shadow-md z-10 border max-h-64 overflow-y-auto overscroll-contain"
                     >
                         {filteredDropdown.slice(0, 15).map((pokemon, index) => (
@@ -183,7 +207,9 @@ const DropdownItem: React.FC<{
     handleDropdownSelect: (pokemon: Pokemon) => void;
 }> = ({pokemon, index, searchQuery, highlightedIndex, handleDropdownSelect}) => (
     <li
-        id={`dropdown-item-${index}`}
+        id={getDropdownOptionId(index)}
+        role="option"
+        aria-selected={highlightedIndex === index}
         className={`px-4 py-2 hover:bg-blue-100 text-gray-800 ${
             highlightedIndex === index ? "bg-blue-100" : ""
         }`}
@@ -192,6 +218,7 @@ const DropdownItem: React.FC<{
             href={`/pokemon/${capitalizeFirstLetter(pokemon.name)}`}
             onClick={() => handleDropdownSelect(pokemon)}
             className="block cursor-pointer"
+            tabIndex={-1}
         >
             <span data-testid={`pokemon-card-${pokemon.name}`}>
                 {renderHighlightedText(pokemon.name, searchQuery)}

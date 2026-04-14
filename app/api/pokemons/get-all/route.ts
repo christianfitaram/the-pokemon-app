@@ -39,11 +39,15 @@ export async function GET(req: NextRequest) {
         const filtered = query
             ? results.filter((pokemon) => pokemon.name.includes(query))
             : results;
+        const page = filtered.slice(0, limit);
+        const hydratedPage = query
+            ? await PokemonRepository.hydratePokemonCards(page, 8)
+            : page;
 
         // Transform the response to match our API structure
         return NextResponse.json({
             success: true,
-            data: filtered.slice(0, limit)
+            data: hydratedPage
         });
     } catch (error) {
         return NextResponse.json({

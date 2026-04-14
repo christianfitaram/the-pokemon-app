@@ -9,9 +9,10 @@ export async function GET(
 
   try {
     const pokemonsByType = await PokemonRepository.getPokemonsByType(type);
+    const hydratedPokemonsByType = await PokemonRepository.hydratePokemonCards(pokemonsByType, 8);
     return NextResponse.json({
       success: true,
-      data: pokemonsByType,
+      data: hydratedPokemonsByType,
     });
   } catch (error) {
     return NextResponse.json(

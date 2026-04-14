@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectRedis } from "@/lib/redis";
+import {
+  clearLocalRateLimitStoreForTests,
+  consumeLocalRateLimit,
+} from "@/lib/security/localRateLimit";
 
 type RateLimitSource = "shared" | "local-fallback";
 
@@ -11,58 +15,6 @@ export type RateLimitResult = {
   limit: number;
   source: RateLimitSource;
 };
-
-const fallbackStore = new Map<string, { count: number; resetAt: number }>();
-const MAX_FALLBACK_KEYS = 20_000;
-const MAX_PRUNE_PER_CALL = 1_000;
-
-function pruneFallbackStore(now: number) {
-  let scanned = 0;
-  for (const [key, value] of fallbackStore.entries()) {
-    if (now >= value.resetAt) {
-      fallbackStore.delete(key);
-    }
-    scanned += 1;
-    if (scanned >= MAX_PRUNE_PER_CALL) {
-      break;
-    }
-  }
-
-  while (fallbackStore.size > MAX_FALLBACK_KEYS) {
-    const oldestKey = fallbackStore.keys().next().value;
-    if (!oldestKey) break;
-    fallbackStore.delete(oldestKey);
-  }
-}
-
-function consumeFallbackLimit(redisScopedKey: string, windowMs: number, maxRequests: number): RateLimitResult {
-  const now = Date.now();
-  pruneFallbackStore(now);
-  const current = fallbackStore.get(redisScopedKey);
-
-  if (!current || now >= current.resetAt) {
-    const resetAt = now + windowMs;
-    fallbackStore.set(redisScopedKey, { count: 1, resetAt });
-    return {
-      allowed: true,
-      count: 1,
-      remaining: Math.max(0, maxRequests - 1),
-      resetAt,
-      limit: maxRequests,
-      source: "local-fallback",
-    };
-  }
-
-  current.count += 1;
-  return {
-    allowed: current.count <= maxRequests,
-    count: current.count,
-    remaining: Math.max(0, maxRequests - current.count),
-    resetAt: current.resetAt,
-    limit: maxRequests,
-    source: "local-fallback",
-  };
-}
 
 function shouldUseRedis() {
   if (process.env.FORCE_REDIS_RATE_LIMIT === "true") {
@@ -78,12 +30,12 @@ export async function consumeRateLimit(
 ): Promise<RateLimitResult> {
   const redisScopedKey = `rate-limit:${key}`;
   if (!shouldUseRedis()) {
-    return consumeFallbackLimit(redisScopedKey, windowMs, maxRequests);
+    return consumeLocalRateLimit(redisScopedKey, windowMs, maxRequests);
   }
 
   const redis = await connectRedis();
   if (!redis) {
-    return consumeFallbackLimit(redisScopedKey, windowMs, maxRequests);
+    return consumeLocalRateLimit(redisScopedKey, windowMs, maxRequests);
   }
 
   try {
@@ -104,7 +56,7 @@ export async function consumeRateLimit(
       source: "shared",
     };
   } catch {
-    return consumeFallbackLimit(redisScopedKey, windowMs, maxRequests);
+    return consumeLocalRateLimit(redisScopedKey, windowMs, maxRequests);
   }
 }
 
@@ -139,5 +91,5 @@ export function buildRateLimitExceededResponse(result: RateLimitResult) {
 }
 
 export function clearRateLimitFallbackForTests() {
-  fallbackStore.clear();
+  clearLocalRateLimitStoreForTests();
 }
