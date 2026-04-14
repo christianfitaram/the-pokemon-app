@@ -137,6 +137,8 @@ const Search: React.FC<SearchProps> = ({
 
 
     const filteredDropdown = pokemonNames;
+    const showNameSearchStatus = searchQuery.trim().length >= 2;
+    const nameSearchStatusMessage = namesLoading ? "Searching Pokemon names..." : "";
 
     return (
         <div className="background-muted flex flex-col items-center w-full mt-8 mb-4 py-6 relative gap-6 rounded-b-[2rem] border-b border-white/5 shadow-2xl">
@@ -184,11 +186,16 @@ const Search: React.FC<SearchProps> = ({
                     </button>
                 </div>
             )}
-            {searchQuery.trim().length >= 2 && namesLoading && (
-                <p className="text-sm text-gray-200" role="status" aria-live="polite">
-                    Searching Pokémon names...
+            <div className="h-5" aria-live="polite">
+                <p
+                    className={`text-sm text-gray-200 transition-opacity duration-150 ${
+                        showNameSearchStatus && namesLoading ? "opacity-100" : "opacity-0"
+                    }`}
+                    role="status"
+                >
+                    {nameSearchStatusMessage}
                 </p>
-            )}
+            </div>
 
             <ActionButtons
                 goToHome={goToHome}
