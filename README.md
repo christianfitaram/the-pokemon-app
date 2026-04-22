@@ -26,10 +26,6 @@ Latest verified run (April 14, 2026):
 - Observability notes: [`docs/observability.md`](docs/observability.md)
 - Database initialization details: [`docs/DATABASE_INITIALIZATION.md`](docs/DATABASE_INITIALIZATION.md)
 
-## Impact Framing
-
-Use this repository as evidence of end-to-end engineering ownership: building user-visible features, enforcing API safety controls, validating with automated and E2E testing, and documenting operational behavior for production handoff.
-
 ## Main Features
 
 - Paginated Pokemon catalog with list/grid toggle and persisted UI preferences
